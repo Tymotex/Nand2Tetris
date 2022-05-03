@@ -42,5 +42,35 @@ CHIP ALU {
         ng; // 1 if (out < 0),  0 otherwise
 
     PARTS:
-   // Put you code here:
+        // Apply transformations to x.
+        Zero16(a=x, shouldZero=zx, out=x1);
+        Neg16(a=x1, shouldNegate=nx, out=x2);
+
+        // Apply transformations to y.
+        Zero16(a=y, shouldZero=zy, out=y1);
+        Neg16(a=y1, shouldNegate=ny, out=y2);
+
+        // Function selection.
+        DMux16(in=x2, sel=f, a=xToAnd, b=xToAdd);
+        DMux16(in=y2, sel=f, a=yToAnd, b=yToAdd);
+
+        // Compute both Add and And.
+        Add16(a=xToAdd, b=yToAdd, out=addResult);
+        And16(a=xToAnd, b=yToAnd, out=andResult);
+
+        // Computation result output.
+        Or16(a=addResult, b=andResult, out=postOut);
+
+        // Not the output, if specified.
+        Not16(in=postOut, out=notPostOut);
+        Mux16(a=postOut, b=notPostOut, sel=no, out=finalOut);
+        Or16(a=finalOut, b[0..15]=false, out=out); // This is a workaround to `out` not being usable as an internal input pin.
+
+        // Is the output zero?
+        IsZero16(in=finalOut, isZero=zr);
+
+        // Is the output negative?
+        // With two's complement representation, we can check if a given number
+        // is negative by just checking if the first bit is a 1.
+        IsNegative16(in=finalOut, isNegative=ng);
 }

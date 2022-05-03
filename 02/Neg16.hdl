@@ -1,0 +1,16 @@
+// A helper chip for building the Hack ALU.
+
+/**
+ * Given a 16-bit input and a yes/no control bit, decides whether to negate the
+ * input or let it pass through unchanged.
+ */
+CHIP Neg16 {
+    IN  
+        a[16],
+        shouldNegate;
+    OUT 
+        out[16];
+    PARTS:
+        Not16(in=a, out=notA);
+        Mux16(a=a, b=notA, sel=shouldNegate, out=out);
+}

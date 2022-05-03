@@ -1,0 +1,13 @@
+// A helper chip for building the Hack ALU.
+
+/**
+ * Given a 16-bit input, determines whether it is negative.
+ */
+CHIP IsNegative16 {
+    IN
+        in[16];
+    OUT
+        isNegative;
+    PARTS:
+        And(a=in[15], b=true, out=isNegative);
+}

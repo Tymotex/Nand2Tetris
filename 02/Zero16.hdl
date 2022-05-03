@@ -1,0 +1,15 @@
+// A helper chip for building the Hack ALU.
+
+/**
+ * Given a 16-bit input and a yes/no control bit, decides whether to zero the
+ * input or let it pass through unchanged.
+ */
+CHIP Zero16 {
+    IN  
+        a[16],
+        shouldZero;
+    OUT
+        out[16];
+    PARTS:
+        Mux16(a=a, b[0..15]=false, sel=shouldZero, out=out);
+}

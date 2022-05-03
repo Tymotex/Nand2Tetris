@@ -1,0 +1,29 @@
+// A helper chip for building the Hack ALU.
+
+/**
+ * Given a 16-bit input, determines whether it is 0.
+ */
+CHIP IsZero16 {
+    IN
+        in[16];
+    OUT
+        isZero;
+    PARTS:
+        Or(a=in[0], b=false, out=bit0IsZero);
+        Or(a=in[1], b=bit0IsZero, out=bit1IsZero);
+        Or(a=in[2], b=bit1IsZero, out=bit2IsZero);
+        Or(a=in[3], b=bit2IsZero, out=bit3IsZero);
+        Or(a=in[4], b=bit3IsZero, out=bit4IsZero);
+        Or(a=in[5], b=bit4IsZero, out=bit5IsZero);
+        Or(a=in[6], b=bit5IsZero, out=bit6IsZero);
+        Or(a=in[7], b=bit6IsZero, out=bit7IsZero);
+        Or(a=in[8], b=bit7IsZero, out=bit8IsZero);
+        Or(a=in[9], b=bit8IsZero, out=bit9IsZero);
+        Or(a=in[10], b=bit9IsZero, out=bit10IsZero);
+        Or(a=in[11], b=bit10IsZero, out=bit11IsZero);
+        Or(a=in[12], b=bit11IsZero, out=bit12IsZero);
+        Or(a=in[13], b=bit12IsZero, out=bit13IsZero);
+        Or(a=in[14], b=bit13IsZero, out=bit14IsZero);
+        Or(a=in[15], b=bit14IsZero, out=bit15IsZero);
+        Not(in=bit15IsZero, out=isZero);
+}
