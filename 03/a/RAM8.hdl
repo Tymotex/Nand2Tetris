@@ -15,5 +15,26 @@ CHIP RAM8 {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // 'Sending' `load` to the right register.
+    Mux8Way(a=load, b=false, c=false, d=false, e=false, f=false, g=false, h=false, sel=address, out=load000);
+    Mux8Way(a=false, b=load, c=false, d=false, e=false, f=false, g=false, h=false, sel=address, out=load001);
+    Mux8Way(a=false, b=false, c=load, d=false, e=false, f=false, g=false, h=false, sel=address, out=load010);
+    Mux8Way(a=false, b=false, c=false, d=load, e=false, f=false, g=false, h=false, sel=address, out=load011);
+    Mux8Way(a=false, b=false, c=false, d=false, e=load, f=false, g=false, h=false, sel=address, out=load100);
+    Mux8Way(a=false, b=false, c=false, d=false, e=false, f=load, g=false, h=false, sel=address, out=load101);
+    Mux8Way(a=false, b=false, c=false, d=false, e=false, f=false, g=load, h=false, sel=address, out=load110);
+    Mux8Way(a=false, b=false, c=false, d=false, e=false, f=false, g=false, h=load, sel=address, out=load111);
+
+    // Hooking `in` and the selected `load` to every register.
+    Register(in=in, load=load000, out=reg000);
+    Register(in=in, load=load001, out=reg001);
+    Register(in=in, load=load010, out=reg010);
+    Register(in=in, load=load011, out=reg011);
+    Register(in=in, load=load100, out=reg100);
+    Register(in=in, load=load101, out=reg101);
+    Register(in=in, load=load110, out=reg110);
+    Register(in=in, load=load111, out=reg111);
+
+    // Selecting the register output.
+    Mux8Way16(a=reg000, b=reg001, c=reg010, d=reg011, e=reg100, f=reg101, g=reg110, h=reg111, sel=address, out=out);
 }

@@ -15,5 +15,18 @@ CHIP RAM16K {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // 'Sending' `load` to the right RAM4K chip.
+    Mux4Way(a=load, b=false, c=false, d=false, sel=address[12..13], out=load00);
+    Mux4Way(a=false, b=load, c=false, d=false, sel=address[12..13], out=load01);
+    Mux4Way(a=false, b=false, c=load, d=false, sel=address[12..13], out=load10);
+    Mux4Way(a=false, b=false, c=false, d=load, sel=address[12..13], out=load11);
+
+    // Hooking `in` and the selected `load` to every RAM4K chip.
+    RAM4K(in=in, load=load00, address=address[0..11], out=RAM4KChip00);
+    RAM4K(in=in, load=load01, address=address[0..11], out=RAM4KChip01);
+    RAM4K(in=in, load=load10, address=address[0..11], out=RAM4KChip10);
+    RAM4K(in=in, load=load11, address=address[0..11], out=RAM4KChip11);
+
+    // Selecting the register output.
+    Mux4Way16(a=RAM4KChip00, b=RAM4KChip01, c=RAM4KChip10, d=RAM4KChip11, sel=address[12..13], out=out);
 }

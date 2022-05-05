@@ -16,5 +16,21 @@ CHIP PC {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // Get the old value, but incremented:
+    Inc16(in=finalOut, out=incrementedOldVal);
+
+    Mux16(a=false, b=incrementedOldVal, sel=inc, out=val1);
+    Mux16(a=val1, b=in, sel=load, out=val2);
+    Mux16(a=val2, b=false, sel=reset, out=regIn);
+    
+    // Only assign a new value into the register iff any of load, inc or reset
+    // are active. Else, reject all write attempts.
+    Or(a=load, b=inc, out=loadOrInc);
+    Or(a=loadOrInc, b=reset, out=shouldLoad);
+
+    Register(in=regIn, load=shouldLoad, out=finalOut);
+
+    // Invert `finalOut`.
+    Not16(in=finalOut, out=invOut);
+    Not16(in=invOut, out=out);
 }

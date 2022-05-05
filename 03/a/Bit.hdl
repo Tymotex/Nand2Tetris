@@ -14,5 +14,10 @@ CHIP Bit {
     OUT out;
 
     PARTS:
-    // Put your code here:
+    Mux(a=finalOut, b=in, sel=load, out=dffIn);
+    DFF(in=dffIn, out=finalOut);
+
+    // Workaround to "Can't connect gate's output pin to part".
+    Not(in=finalOut, out=invOut);
+    Not(in=invOut, out=out);
 }

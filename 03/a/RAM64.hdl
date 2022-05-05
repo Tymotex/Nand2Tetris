@@ -15,5 +15,26 @@ CHIP RAM64 {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // 'Sending' `load` to the right RAM8 chip.
+    Mux8Way(a=load, b=false, c=false, d=false, e=false, f=false, g=false, h=false, sel=address[3..5], out=load000);
+    Mux8Way(a=false, b=load, c=false, d=false, e=false, f=false, g=false, h=false, sel=address[3..5], out=load001);
+    Mux8Way(a=false, b=false, c=load, d=false, e=false, f=false, g=false, h=false, sel=address[3..5], out=load010);
+    Mux8Way(a=false, b=false, c=false, d=load, e=false, f=false, g=false, h=false, sel=address[3..5], out=load011);
+    Mux8Way(a=false, b=false, c=false, d=false, e=load, f=false, g=false, h=false, sel=address[3..5], out=load100);
+    Mux8Way(a=false, b=false, c=false, d=false, e=false, f=load, g=false, h=false, sel=address[3..5], out=load101);
+    Mux8Way(a=false, b=false, c=false, d=false, e=false, f=false, g=load, h=false, sel=address[3..5], out=load110);
+    Mux8Way(a=false, b=false, c=false, d=false, e=false, f=false, g=false, h=load, sel=address[3..5], out=load111);
+
+    // Hooking `in` and the selected `load` to every RAM8 chip.
+    RAM8(in=in, load=load000, address=address[0..2], out=RAM8Chip000);
+    RAM8(in=in, load=load001, address=address[0..2], out=RAM8Chip001);
+    RAM8(in=in, load=load010, address=address[0..2], out=RAM8Chip010);
+    RAM8(in=in, load=load011, address=address[0..2], out=RAM8Chip011);
+    RAM8(in=in, load=load100, address=address[0..2], out=RAM8Chip100);
+    RAM8(in=in, load=load101, address=address[0..2], out=RAM8Chip101);
+    RAM8(in=in, load=load110, address=address[0..2], out=RAM8Chip110);
+    RAM8(in=in, load=load111, address=address[0..2], out=RAM8Chip111);
+
+    // Selecting the register output.
+    Mux8Way16(a=RAM8Chip000, b=RAM8Chip001, c=RAM8Chip010, d=RAM8Chip011, e=RAM8Chip100, f=RAM8Chip101, g=RAM8Chip110, h=RAM8Chip111, sel=address[3..5], out=out);
 }
