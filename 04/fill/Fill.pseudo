@@ -1,0 +1,14 @@
+
+def fill():
+    for 16-bit group in screen:
+        group = -1    (to write 1111111111111111 to that 16-bit group)
+
+def clear():
+    for 16-bit group in screen:
+        group = 0     (to write 0000000000000000 to that 16-bit group)
+
+while true:
+    if KBD value is valid code:
+        fill()
+    else
+        clear()
