@@ -54,9 +54,10 @@ CHIP CPU {
     Or16To15(a=outA, b=false, out=addressM);
 
     // ===== D-Register =====
-    // If the destination bits indicate to write into the D-register, then 
-    // enable `load`.
-    DRegister(in=finalOutM, load=instruction[4], out=outD);
+    // If the destination bits indicate to write into the D-register AND the
+    // instruction is a C-instruction, then enable `load`.
+    And(a=instruction[4], b=instruction[15], out=loadD);
+    DRegister(in=finalOutM, load=loadD, out=outD);
 
     // ===== Deciding between A or M as input into the ALU =====
     Mux16(a=outA, b=inM, sel=instruction[12], out=oneOfAorM);

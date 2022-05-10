@@ -27,5 +27,19 @@ CHIP Memory {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // Deal with addresses in range [0x0000, 0x6000)
+    DMux(in=load, sel=address[14], a=loadRam16k, b=loadScreen); 
+
+    RAM16K(in=in, load=loadRam16k, address=address[0..13], out=ram16kOut);
+    Screen(in=in, load=loadScreen, address=address[0..12], out=screen8kOut);
+
+    Mux16(a=ram16kOut, b=screen8kOut, sel=address[14], out=screenOrData);
+
+    // Access the keyboard memory at 0x6000.
+    // Note: 0x6000 == 24576 == 0110 0000 0000 0000
+    Xor16(a[0..14]=address, b[13..14]=true, out=kbd);
+    IsZero16(in=kbd, isZero=chooseKbd);
+
+    Keyboard(out=kbdOut);
+    Mux16(a=screenOrData, b=kbdOut, sel=chooseKbd, out=out);
 }
