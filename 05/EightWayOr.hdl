@@ -1,0 +1,20 @@
+// Helper chip.
+
+CHIP EightWayOr {
+    IN a, b, c, d, e, f, g, h;
+    OUT out;
+
+    PARTS:
+    // First layer of OR gates.
+    Or(a=a, b=b, out=orOut1);
+    Or(a=c, b=d, out=orOut2);
+    Or(a=e, b=f, out=orOut3);
+    Or(a=g, b=h, out=orOut4);
+
+    // Second layer of OR gates.
+    Or(a=orOut1, b=orOut2, out=secondOrOut1);
+    Or(a=orOut3, b=orOut4, out=secondOrOut2);
+
+    // Output layer.
+    Or(a=secondOrOut1, b=secondOrOut2, out=out);
+}

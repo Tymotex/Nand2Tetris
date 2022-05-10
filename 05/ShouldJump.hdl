@@ -1,0 +1,44 @@
+// A helper chip to assist deciding whether or not to load an explicit address
+// into the PC register.
+// Based on the ALU output and the jump control bits of the 16-bit instruction,
+// determines whether to enable loading a new value into the PC register.
+
+CHIP ShouldJump {
+    IN 
+        jumpBits[3], aluOutputIsZero, aluOutputIsNegative;
+    OUT 
+        shouldJump;
+    PARTS:
+        DMux8Way(in=true, sel=jumpBits, a=noJMP, b=JGT, c=JEQ, d=JGE, e=JLT, f=JNE, g=JLE, h=JMP);
+
+        // Intermediate values.
+        Not(in=aluOutputIsNegative, out=aluOutputIsNonNegative);
+        Not(in=aluOutputIsZero, out=aluOutputIsNonZero);
+
+        // JGT: ALU output must be non-negative AND non-zero
+        And(a=aluOutputIsNonNegative, b=aluOutputIsNonZero, out=isStrictPositive);
+        And(a=JGT, b=isStrictPositive, out=JGTPassed);
+
+        // JEQ: ALU output must be zero.
+        And(a=JEQ, b=aluOutputIsZero, out=JEQPassed);
+
+        // JGE: ALU output must be non-negative.
+        And(a=JGE, b=aluOutputIsNonNegative, out=JGEPassed);
+
+        // JLT: ALU output must be negative AND non-zero.
+        And(a=aluOutputIsNegative, b=aluOutputIsNonZero, out=isStrictNegative);
+        And(a=JLT, b=isStrictNegative, out=JLTPassed);
+
+        // JNE: ALU output must be non-zero.
+        And(a=JNE, b=aluOutputIsNonZero, out=JNEPassed);
+
+        // JLE: ALU output must be negative OR zero.
+        Or(a=aluOutputIsNegative, b=aluOutputIsZero, out=isNegative);
+        And(a=JLE, b=isNegative, out=JLEPassed);
+
+        // If noJMP, then set shouldJump = false.
+        // Otherwise, set shouldJump = true if the chosen JMP directive's 
+        // condition pass.
+        EightWayOr(a=false, b=JGTPassed, c=JEQPassed, d=JGEPassed, e=JLTPassed, f=JNEPassed, g=JLEPassed, h=JMP, out=conditionPassed);
+        Mux(a=conditionPassed, b=false, sel=noJMP, out=shouldJump);
+}

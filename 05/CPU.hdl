@@ -39,5 +39,47 @@ CHIP CPU {
         pc[15];          // address of next instruction
 
     PARTS:
-    // Put your code here:
+    // If the MSB is 0, then the instruction is an A-instruction.
+    // Otherwise, it's a C-instruction which may write to register A as a
+    // destination.
+    Mux16(a=instruction, b=finalOutM, sel=instruction[15], out=inRegA);
+    
+    // ===== A-Register =====
+    // If the instruction is an A-instruction OR the destination bits signify
+    // to write into the A-register, then enable `load`.
+    Not(in=instruction[15], out=isAInstruction);
+    Or(a=isAInstruction, b=instruction[5], out=shouldLoadA);
+    ARegister(in=inRegA, load=shouldLoadA, out=outA);
+
+    Or16To15(a=outA, b=false, out=addressM);
+
+    // ===== D-Register =====
+    // If the destination bits indicate to write into the D-register, then 
+    // enable `load`.
+    DRegister(in=finalOutM, load=instruction[4], out=outD);
+
+    // ===== Deciding between A or M as input into the ALU =====
+    Mux16(a=outA, b=inM, sel=instruction[12], out=oneOfAorM);
+
+    // ===== ALU =====
+    ALU(x=outD, y=oneOfAorM, zx=instruction[11], nx=instruction[10], zy=instruction[9], ny=instruction[8], f=instruction[7], no=instruction[6], out=finalOutM, zr=aluOutputIsZero, ng=aluOutputIsNegative);
+    Or16(a=finalOutM, b=false, out=outM);
+
+    // ===== Write M =====
+    // If the instruction says to write to M (instruction[3] bit is on) AND
+    // the instruction is a C-instruction, then assert writeM.
+    Or(a=instruction[3], b=false, out=writingToM);
+    And(a=writingToM, b=instruction[15], out=writeM);
+
+    // ===== PC Register =====
+    // Using ShouldJump, we determine whether or not to enable `load` for the
+    // PC register and whether the `inc` input should be 1 or 0.
+    ShouldJump(jumpBits=instruction[0..2], aluOutputIsZero=aluOutputIsZero, aluOutputIsNegative=aluOutputIsNegative, shouldJump=shouldJump);
+    And(a=shouldJump, b=instruction[15], out=pcShouldLoad);
+    Not(in=pcShouldLoad, out=pcShouldNotLoad);
+    Not(in=reset, out=dontReset);
+    And(a=pcShouldNotLoad, b=dontReset, out=pcShouldInc);
+    PC(in=outA, load=pcShouldLoad, inc=pcShouldInc, reset=reset, out=pcOut);
+
+    Or16To15(a=pcOut, b=false, out=pc);
 }
