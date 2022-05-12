@@ -21,12 +21,19 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    MachineCodeMapper code_mapper;
+    HackAsmParser parser(asm_filename);
+    SymbolTable symbol_table;
+    // First pass:
+    // Identify all L-instructions and A-instructions that reference a symbol.
+    // Adds the symbols to a symbol table and assigns it an address starting
+    // from 16 onwards. 
+    // TODO: IMPLEMENT ME.
+
     // Second pass:
     // For each line of assembly instruction (either C-instruction or 
     // A-instruction), map it to the corresponding string of 0s and 1s, then
     // write it to a file.
-    MachineCodeMapper code_mapper;
-    HackAsmParser parser(asm_filename);
     std::ofstream hack_file("out.hack");
     while (parser.has_more_lines()) {
         parser.advance();
