@@ -1,3 +1,6 @@
+#ifndef SYMBOL_TABLE_HACK
+#define SYMBOL_TABLE_HACK
+
 #include <string>
 #include <unordered_map>
 
@@ -29,3 +32,5 @@ public:
 private:
     std::unordered_map<std::string, int> _symbol_table;
 };
+
+#endif

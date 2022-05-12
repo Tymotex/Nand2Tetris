@@ -1,13 +1,22 @@
-#include <iostream>
 #include "Code.h"
+#include "SymbolTable.h"
+#include <iostream>
 
 std::unordered_map<std::string, std::string> MachineCodeMapper::dest_to_code = {
     {"M", "001"},
     {"D", "010"},
     {"DM", "011"},
+    {"MD", "011"},
     {"A", "100"},
     {"AM", "101"},
+    {"MA", "101"},
     {"AD", "110"},
+    {"DA", "110"},
+    {"ADM", "111"},
+    {"AMD", "111"},
+    {"MAD", "111"},
+    {"MDA", "111"},
+    {"DAM", "111"},
     {"ADM", "111"},
 };
 
@@ -18,7 +27,7 @@ std::unordered_map<std::string, std::string> MachineCodeMapper::comp_to_code = {
     {"D", "0001100"},
     {"A", "0110000"}, {"M", "1110000"},
     {"!D", "0001101"},
-    {"!A", "0110011"}, {"!M", "1110011"},
+    {"!A", "0110001"}, {"!M", "1110001"},
     {"-D", "0001111"},
     {"-A", "0110011"}, {"-M", "1110011"},
     {"D+1", "0011111"},
@@ -28,6 +37,7 @@ std::unordered_map<std::string, std::string> MachineCodeMapper::comp_to_code = {
     {"D+A", "0000010"}, {"D+M", "1000010"},
     {"D-A", "0010011"}, {"D-M", "1010011"},
     {"A-D", "0000111"}, {"M-D", "1000111"},
+    {"D&A", "0000000"}, {"D&M", "1000000"},
     {"D|A", "0010101"}, {"D|M", "1010101"}
 };
 
@@ -65,7 +75,7 @@ std::string MachineCodeMapper::jump(std::string asm_code) {
     return jump_to_code[asm_code];
 }
 
-inline bool is_integer(const std::string & s) {
+bool MachineCodeMapper::is_integer(const std::string& s) {
    if (s.empty() || ((!isdigit(s[0])) && (s[0] != '-') && (s[0] != '+'))) return false;
    char* p;
    strtol(s.c_str(), &p, 10);
@@ -82,13 +92,13 @@ std::string get_binary_representation(int val) {
     return binary_rep;
 }
 
-std::string MachineCodeMapper::get_address(std::string asm_code) {
+std::string MachineCodeMapper::get_address(std::string asm_code, SymbolTable& symbol_table) {
     if (is_integer(asm_code)) {
         int numeric_address = stoi(asm_code);
         return get_binary_representation(numeric_address);
     } else {
         // Convert to numeric address with symbol table, then get binary
         // representation.
-        return "TMP";
+        return get_binary_representation(symbol_table.get_address(asm_code));
     }
 }

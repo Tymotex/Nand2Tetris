@@ -19,7 +19,7 @@ bool HackAsmParser::advance() {
     std::getline(_asm_file, _curr_instruction);
     normalise();
     parse();
-    show_curr_instruction_info();
+    // show_curr_instruction_info();
     if (instruction_type() != InstructionType::INVALID_INSTRUCTION) return true;
     return advance();
 }
@@ -27,15 +27,15 @@ bool HackAsmParser::advance() {
 void HackAsmParser::normalise() {
     // Strip all whitespaces.
     std::regex pattern("\\s+");
-    std::string replacement = "";
-    _curr_instruction = std::regex_replace(_curr_instruction, pattern, replacement);
+    _curr_instruction = std::regex_replace(_curr_instruction, pattern, "");
 
     // Strip trailing inline comment.
-    // TODO:
+    std::regex comment_pattern(R"(//(.*)$)");
+    _curr_instruction = std::regex_replace(_curr_instruction, comment_pattern, "");
 }
 
 void HackAsmParser::parse() {
-    std::string C_INSTRUCTION_REGEX_PATTERN = R"(^(^((M|D|DM|A|AM|AD|ADM)=)?(0|1|(D|A|M)?-1|-?(D|A|M)|![DAM]|[DAM]\+1|D[+-][AM]|[AM]-D|D[|&][AM]);?(JGT|JEQ|JGE|JLT|JNE|JLE|JMP)?$))";
+    std::string C_INSTRUCTION_REGEX_PATTERN = R"(^(^((M|D|DM|MD|A|AM|MA|AD|DA|ADM|AMD|MAD|MDA|DAM|DMA)=)?(0|1|(D|A|M)?-1|-?(D|A|M)|![DAM]|[DAM]\+1|D[+-][AM]|[AM]-D|D[|&][AM]);?(JGT|JEQ|JGE|JLT|JNE|JLE|JMP)?$))";
     // Any line starting with @ is treated as an A-instruction.
     if (_curr_instruction[0] == '@') {
         _instr_type = InstructionType::A_INSTRUCTION;
@@ -97,8 +97,8 @@ std::string HackAsmParser::dest() {
 std::string HackAsmParser::comp() {
     if (instruction_type() != InstructionType::C_INSTRUCTION)
         std::cerr << "Assembler Error: Cannot extract comp from non C-instruction.\n";
-    std::regex full_op_pattern(R"(^.*=([-+ADM!&|1]+);?(JGT|JEQ|JGE|JLT|JNE|JLE|JMP)?$)");
-    std::regex jmp_only_pattern(R"(^([-+ADM!&|1]+);?(JGT|JEQ|JGE|JLT|JNE|JLE|JMP)?$)");
+    std::regex full_op_pattern(R"(^.*=([-+ADM!&|10]+);?(JGT|JEQ|JGE|JLT|JNE|JLE|JMP)?$)");
+    std::regex jmp_only_pattern(R"(^([-+ADM!&|10]+);?(JGT|JEQ|JGE|JLT|JNE|JLE|JMP)?$)");
     std::smatch matches;
     if (std::regex_search(_curr_instruction, matches, full_op_pattern)) {
         return matches[1];

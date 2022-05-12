@@ -1,3 +1,7 @@
+#ifndef HACK_CODE_MAPPER
+#define HACK_CODE_MAPPER
+
+#include "SymbolTable.h"
 #include <string>
 #include <unordered_map>
 
@@ -27,9 +31,13 @@ public:
     /**
      * Gets the given assembly A-instruction's address as a string of 0s and 1s.
      */
-    std::string get_address(std::string asm_code);
+    std::string get_address(std::string asm_code, SymbolTable& symbol_table);
+
+    bool is_integer(const std::string& s);
 private:
     static std::unordered_map<std::string, std::string> dest_to_code;
     static std::unordered_map<std::string, std::string> comp_to_code;
     static std::unordered_map<std::string, std::string> jump_to_code;
 };
+
+#endif
