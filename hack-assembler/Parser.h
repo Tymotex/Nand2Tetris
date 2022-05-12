@@ -1,15 +1,20 @@
 #include <string>
 #include <vector>
+#include <regex>
+#include <fstream>
 
 /**
  * Hack assembly instructions are either A-instructions or C-instructions.
  * Labels are not really instructions, they're just symbolic markers, but here
  * we treat them as another instruction type.
  */
-enum class InstructionType {
+enum InstructionType {
     A_INSTRUCTION,
     C_INSTRUCTION,
-    L_INSTRUCTION
+    L_INSTRUCTION,
+    COMMENT,
+    EMPTY,
+    INVALID_INSTRUCTION
 };
 
 /**
@@ -17,12 +22,13 @@ enum class InstructionType {
  * line, extracting out the micro-codes constituting the 16-bit instruction and
  * maintaining state about where it is up to in parsing the file.
  */
-class Parser {
+class HackAsmParser {
 public:
+
     /**
      * Opens the given .asm file and loads its contents into a Parser object.
      */
-    explicit Parser(std::string asm_source_file_path);
+    explicit HackAsmParser(std::string asm_source_file_path);
 
     /**
      * Determines if there are more lines to be parsed or whether the end of the
@@ -69,5 +75,16 @@ public:
     std::string jump();
 
 private:
-    std::vector<std::string> _asm_source;
+    std::ifstream _asm_file;
+    std::string _curr_instruction;
+    int _curr_line_num;
+
+    InstructionType _instr_type;
+
+    void parse();
+    std::vector<std::string> tokenise(const char& delimiter);
+
+    void normalise();
+
+    void show_curr_instruction_info();
 };
