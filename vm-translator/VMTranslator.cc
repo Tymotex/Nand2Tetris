@@ -24,12 +24,27 @@ int main(int argc, char* argv[]) {
     } else if (argc > 3) {
         std::cerr << "Too many arguments.\n";
     }
-    std::string output_file_path = get_basename("hello/world/fuck.vm") + ".asm";
-    
 
-    std::ofstream output_asm_file(output_file_path);
+    std::string input_file_path = argv[1];
+    std::string output_file_path = get_basename(input_file_path) + ".asm";
+    AsmMapper code_mapper(output_file_path);
+    VMParser parser(input_file_path);
 
+    while (parser.has_more_lines()) {
+        parser.advance();
+        switch (parser.command_type()) {
+            case VMOperationType::C_ARITHMETIC:
+                code_mapper.write_arithmetic(parser.get_curr_instruction());
+                break;
+            case VMOperationType::C_PUSH:
+            case VMOperationType::C_POP:
+                code_mapper.write_push_pop(parser.get_curr_instruction(), parser.arg1(), parser.arg2());
+                break;
+            default:
+                break;
+        }
+    }
+    code_mapper.close();
 
-    output_asm_file.close();
     return 0;
 }

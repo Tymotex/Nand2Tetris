@@ -4,7 +4,8 @@
 #include <regex>
 
 VMParser::VMParser(const std::string& vm_source_file_path) 
-    : _vm_in(std::ifstream(vm_source_file_path)) {
+    : _vm_in(std::ifstream(vm_source_file_path)),
+      _curr_line(0) {
 }
 
 bool VMParser::has_more_lines() {
@@ -12,11 +13,10 @@ bool VMParser::has_more_lines() {
 }
 
 void VMParser::advance() {
-    std::string line;
-    if (!std::getline(_vm_in, line)) return;
-
-    if ()
-
+    if (!std::getline(_vm_in, _curr_instruction)) return;
+    ++_curr_line;
+    if (!parse()) advance();
+    else show_instruction_debug_info();
 }
 
 VMOperationType VMParser::command_type() {
@@ -31,47 +31,71 @@ int VMParser::arg2() {
     return _arg2;
 }
 
+std::string VMParser::get_curr_instruction() {
+    return _curr_instruction;
+}
+
 void VMParser::preprocess() {
     // Strips all leading and trailing whitespaces.
-    std::string whitespaces = " \t";
-    int start_index = _curr_line.find_first_not_of(whitespaces);
-    int last_index = _curr_line.find_last_not_of(whitespaces);
+    std::string whitespaces = " \t\n";
+    int start_index = _curr_instruction.find_first_not_of(whitespaces);
+    int last_index = _curr_instruction.find_last_not_of(whitespaces);
+    if (last_index == std::string::npos) last_index = _curr_instruction.size() - 1;
     
     int run_len = (last_index + 1) - start_index;
-    _curr_line = _curr_line.substr(start_index, run_len);
+    _curr_instruction = _curr_instruction.substr(start_index, run_len);
 
     // Strip inline comments. TODO:
 }
 
 bool VMParser::parse() {
     preprocess();
+    if (_curr_instruction.empty()) return false;
     
     // First, we determine what command type and therefore what subsequent
     // arguments to expect.
     int run_len = 0; 
-    while (run_len < _curr_line.size()) {
-        const char& c = _curr_line[run_len];
-        if (c == ' ') break;
+    bool whitespace_encountered = false;
+    while (run_len < _curr_instruction.size()) {
+        const char& c = _curr_instruction[run_len];
+        if (c == ' ') {
+            whitespace_encountered = true;
+            break;
+        }
         ++run_len;
     }
-    std::string instruction = _curr_line.substr(0, run_len);
+    std::string instruction = _curr_instruction.substr(0, (whitespace_encountered) ? run_len : run_len - 1);
 
     // Next, we pull out the expected arguments and populate/clear _arg1 and
     // _arg2.
-    if (instruction == "push" || instruction == "pop") {
+    // TODO: replace if statements with a hash table lookup?
+    if (instruction == "push") {
         // Expect the segment name, followed by the index.
-        std::regex push_pop_pattern(R"(^(push|pop) +([a-zA-Z]+) +([0-9]+)$)");
+        std::regex push_pop_pattern(R"(^(push|pop) +([a-zA-Z]+) +([0-9]+))");
         std::smatch matches;
-        if (!std::regex_search(_curr_line, matches, push_pop_pattern)) {
+        if (!std::regex_search(_curr_instruction, matches, push_pop_pattern)) {
             std::cerr << "Syntax Error: push/pop commands expect 2 args.\n";
-        _arg1 = matches[1];
-        _arg2 = stoi(matches[2]);
+            return false;
+        }
+        _arg1 = matches[2];
+        _arg2 = stoi(matches[3]);
+        _command_type = VMOperationType::C_PUSH;
+    } else if (instruction == "pop") {
+        // Expect the segment name, followed by the index.
+        std::regex push_pop_pattern(R"(^(push|pop) +([a-zA-Z]+) +([0-9]+))");
+        std::smatch matches;
+        if (!std::regex_search(_curr_instruction, matches, push_pop_pattern)) {
+            std::cerr << "Syntax Error: push/pop commands expect 2 args.\n";
+            return false;
+        }
+        _arg1 = matches[2];
+        _arg2 = stoi(matches[3]);
         _command_type = VMOperationType::C_POP;
     } else if (instruction == "add" || instruction == "sub" || instruction == "and" || instruction == "or" || instruction == "eq" || instruction == "gt" || instruction == "lt" || instruction == "neg" || instruction == "not") {
         // If additional arguments were supplied, then the instruction is invalid.
-        std::regex arithmetic_logic_pattern(R"(^(push|pop) +([a-zA-Z]+) +([0-9]+)$)");
+        std::regex arithmetic_logic_pattern(R"(^[a-zA-Z]+)");
         std::smatch matches;
-        if (!std::regex_search(_curr_line, matches, arithmetic_logic_pattern)) {
+        if (!std::regex_search(_curr_instruction, matches, arithmetic_logic_pattern)) {
             std::cerr << "Syntax Error: arithmetic/logical instructions expect no arguments.\n";
             return false;
         }
@@ -88,4 +112,26 @@ bool VMParser::parse() {
         return false;
     }
     return true;
+}
+
+void VMParser::show_instruction_debug_info() {
+    std::cout << "Line " << _curr_line << ") " << _curr_instruction << "\n";
+    switch (_command_type) {
+        case VMOperationType::C_ARITHMETIC:
+            std::cout << "\tInstruction: arithmetic" << "\n";
+            break;
+        case VMOperationType::C_PUSH:
+            std::cout << "\tInstruction: push" << "\n";
+            break;
+        case VMOperationType::C_POP:
+            std::cout << "\tInstruction: pop" << "\n";
+            break;
+        case VMOperationType::INVALID:
+            std::cout << "\tInstruction: INVALID";
+            break;
+        default:
+            break;
+    }
+    std::cout << "\tArg1: " << _arg1 << "\n";
+    std::cout << "\tArg2: " << _arg2 << "\n";
 }

@@ -20,16 +20,16 @@ A VM program is just a sequence of the following command types:
     To be done later.
 
 Segment types include:
-- local (`LCL` register in Hack assembly, which points to `RAM[1]`)
-- argument (`ARG` register in Hack assembly, which points to `RAM[2]`)
+- local (`LCL` register in Hack assembly, which is at `RAM[1]`)
+- argument (`ARG` register in Hack assembly, which is at `RAM[2]`)
 - static
     Occupies `RAM[16..255]`, meaning there are 240 registers available for 
     storing static variables.
 - constant
     Does not actually occupy memory.
 - pointer (the segment that contains this and that, ie. occupies `RAM[3..4]`)
-    - this (`THIS` register in Hack assembly, which points to `RAM[3]`)
-    - that (`THAT` register in Hack assembly, which points to `RAM[4]`)
+    - this (`THIS` register in Hack assembly, which is at `RAM[3]`)
+    - that (`THAT` register in Hack assembly, which is at `RAM[4]`)
 - temp (occupies 8 registers from `RAM[5..12]`)
 
 We use `SP = RAM[0]` as the place to store the stack pointer contents. There's

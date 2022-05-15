@@ -1,5 +1,6 @@
 #include <string>
 #include <fstream>
+#include <unordered_map>
 
 class AsmMapper {
 public:
@@ -28,4 +29,6 @@ public:
     void close();
 private:
     std::ofstream _asm_out;
+    static std::unordered_map<std::string, int> _segment_base_addresses;
+    static std::unordered_map<std::string, std::string> _arithmetic_logical_op;
 };

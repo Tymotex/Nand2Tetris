@@ -47,9 +47,16 @@ public:
      * of a push/pop operation, this would obtain the index value.
      */
     int arg2();
+
+    /**
+     * Retrieves the current instruction.
+     */
+    std::string get_curr_instruction();
+
 private:
     std::ifstream _vm_in;
-    std::string _curr_line;
+    std::string _curr_instruction;
+    int _curr_line;
     VMOperationType _command_type;
 
     std::string _arg1;
@@ -62,4 +69,6 @@ private:
     // Parses the current instruction and populates _command_type, _arg1 and
     // _arg2. Returns true if the instruction is valid.
     bool parse();
+
+    void show_instruction_debug_info();
 };
