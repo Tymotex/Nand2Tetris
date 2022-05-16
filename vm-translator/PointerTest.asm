@@ -96,10 +96,9 @@
 	A = A + D
 	D = M
 	@SP
-	A = M
-	M = D
-	@SP
 	M = M + 1
+	A = M - 1
+	M = D
 // sub
 	@SP
 	M = M - 1
@@ -114,10 +113,9 @@
 	A = A + D
 	D = M
 	@SP
-	A = M
-	M = D
-	@SP
 	M = M + 1
+	A = M - 1
+	M = D
 // add
 	@SP
 	M = M - 1

@@ -59,18 +59,16 @@
 	@19
 	D = M
 	@SP
-	A = M
-	M = D
-	@SP
 	M = M + 1
+	A = M - 1
+	M = D
 // push static 1
 	@17
 	D = M
 	@SP
-	A = M
-	M = D
-	@SP
 	M = M + 1
+	A = M - 1
+	M = D
 // sub
 	@SP
 	M = M - 1
@@ -82,10 +80,9 @@
 	@24
 	D = M
 	@SP
-	A = M
-	M = D
-	@SP
 	M = M + 1
+	A = M - 1
+	M = D
 // add
 	@SP
 	M = M - 1

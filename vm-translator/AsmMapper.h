@@ -71,6 +71,11 @@ private:
     // For comparison ops, we need to create a label to jump to and we must not
     // create name collisions.
     int _label_count;
+
+    // Writes the assembly code necessary to push a value in D onto the stack.
+    void push_to_stack();
+    // Writes the assembly code necessary to pop a value from the stack into D.
+    void pop_from_stack();
 };
 
 #endif
