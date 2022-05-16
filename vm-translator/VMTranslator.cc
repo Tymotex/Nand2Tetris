@@ -37,13 +37,16 @@ int main(int argc, char* argv[]) {
                 code_mapper.write_arithmetic(parser.get_curr_instruction());
                 break;
             case VMOperationType::C_PUSH:
+                code_mapper.write_push(parser.get_curr_instruction(), parser.arg1(), parser.arg2());
+                break;
             case VMOperationType::C_POP:
-                code_mapper.write_push_pop(parser.get_curr_instruction(), parser.arg1(), parser.arg2());
+                code_mapper.write_pop(parser.get_curr_instruction(), parser.arg1(), parser.arg2());
                 break;
             default:
                 break;
         }
     }
+    code_mapper.write_inf_loop();
     code_mapper.close();
 
     return 0;

@@ -13,7 +13,12 @@ bool VMParser::has_more_lines() {
 }
 
 void VMParser::advance() {
-    if (!std::getline(_vm_in, _curr_instruction)) return;
+    if (!std::getline(_vm_in, _curr_instruction)) {
+        _command_type = VMOperationType::INVALID;
+        _arg1 = "";
+        _arg2 = -1;
+        return;
+    }
     ++_curr_line;
     if (!parse()) advance();
     else show_instruction_debug_info();
@@ -36,16 +41,19 @@ std::string VMParser::get_curr_instruction() {
 }
 
 void VMParser::preprocess() {
-    // Strips all leading and trailing whitespaces.
-    std::string whitespaces = " \t\n";
-    int start_index = _curr_instruction.find_first_not_of(whitespaces);
-    int last_index = _curr_instruction.find_last_not_of(whitespaces);
-    if (last_index == std::string::npos) last_index = _curr_instruction.size() - 1;
-    
-    int run_len = (last_index + 1) - start_index;
-    _curr_instruction = _curr_instruction.substr(start_index, run_len);
+    // Strips all leading whitespace.
+    const std::string WHITESPACE = " \n\r\t\f\v";
 
-    // Strip inline comments. TODO:
+    int start_index = _curr_instruction.find_first_not_of(WHITESPACE);
+    if (start_index != std::string::npos) _curr_instruction = _curr_instruction.substr(start_index);
+    
+    // Strip inline comments.
+    int comment_start_index = _curr_instruction.find_first_of("/");
+    if (comment_start_index != std::string::npos) _curr_instruction = _curr_instruction.substr(0, comment_start_index);
+
+    // Strip all trailing whitespace.
+    int last_index = _curr_instruction.find_last_not_of(WHITESPACE);
+    if (last_index != std::string::npos) _curr_instruction = _curr_instruction.substr(0, last_index + 1);
 }
 
 bool VMParser::parse() {
@@ -55,16 +63,12 @@ bool VMParser::parse() {
     // First, we determine what command type and therefore what subsequent
     // arguments to expect.
     int run_len = 0; 
-    bool whitespace_encountered = false;
     while (run_len < _curr_instruction.size()) {
         const char& c = _curr_instruction[run_len];
-        if (c == ' ') {
-            whitespace_encountered = true;
-            break;
-        }
+        if (c == ' ') break;
         ++run_len;
     }
-    std::string instruction = _curr_instruction.substr(0, (whitespace_encountered) ? run_len : run_len - 1);
+    std::string instruction = _curr_instruction.substr(0, run_len);
 
     // Next, we pull out the expected arguments and populate/clear _arg1 and
     // _arg2.

@@ -1,3 +1,6 @@
+#ifndef VMPARSER_H
+#define VMPARSER_H
+
 #include <string>
 #include <fstream>
 
@@ -72,3 +75,5 @@ private:
 
     void show_instruction_debug_info();
 };
+
+#endif
