@@ -1,4 +1,4 @@
-# VM Translator
+# VM Translator (Part I)
 
 Translates .vm files containing Jack VM instructions into a .asm file containing
 Hack assembly instructions.
@@ -34,3 +34,21 @@ Segment types include:
 
 We use `SP = RAM[0]` as the place to store the stack pointer contents. There's
 no need to be aware of this though, as the VM translator.
+
+# VM Translator (Part II)
+
+Part 2 is about introducing branching capabilities to the Jack VM instruction
+language. 
+
+- `label <label>` - creates a label symbol with associated address.
+- `goto <label>` - unconditionally jumps to the address associated with the given label.
+- `if-goto <label>` - conditionally jumps. The stack's top value must be non-zero to jump, else this line effectively does nothing.
+- `function <functionName> <num_params>` - declares a function and associates an address with the symbol.
+    - The VM Translator generates assembly code responsible for initialising local variables of the callee.
+- `call <functionName> <num_args>` - invokes function, passing in the list of args.
+    - The VM Translator generates assembly code responsible for saving the current function's stack frame and jumps to the callee.
+- `return` - transfers execution back to the caller.
+    - The VM Translator generates assembly code responsible for copying the return value to the top of the caller's working stack and restores state that is expected to be unchanged, and jumps back to the return address.
+
+`VMTranslator` should now take in either a filename or a directory name containing .vm files (and no subdirectories).
+
