@@ -2,6 +2,11 @@
 #include <fstream>
 #include <iostream>
 #include <regex>
+#include <unordered_set>
+
+std::unordered_set<std::string> VMParser::_arithmetic_logic_operators = {
+    "add", "sub", "and", "or", "eq", "gt", "lt", "neg", "not"
+};
 
 VMParser::VMParser(const std::string& vm_source_file_path) 
     : _vm_in(std::ifstream(vm_source_file_path)),
@@ -14,7 +19,7 @@ bool VMParser::has_more_lines() {
 
 void VMParser::advance() {
     if (!std::getline(_vm_in, _curr_instruction)) {
-        _command_type = VMOperationType::INVALID;
+        _instruction_type = VMOperationType::INVALID;
         _arg1 = "";
         _arg2 = -1;
         return;
@@ -25,7 +30,7 @@ void VMParser::advance() {
 }
 
 VMOperationType VMParser::command_type() {
-    return _command_type;
+    return _instruction_type;
 }
 
 std::string VMParser::arg1() {
@@ -72,7 +77,6 @@ bool VMParser::parse() {
 
     // Next, we pull out the expected arguments and populate/clear _arg1 and
     // _arg2.
-    // TODO: replace if statements with a hash table lookup?
     if (instruction == "push") {
         // Expect the segment name, followed by the index.
         std::regex push_pop_pattern(R"(^(push|pop) +([a-zA-Z]+) +([0-9]+))");
@@ -83,7 +87,7 @@ bool VMParser::parse() {
         }
         _arg1 = matches[2];
         _arg2 = stoi(matches[3]);
-        _command_type = VMOperationType::C_PUSH;
+        _instruction_type = VMOperationType::C_PUSH;
     } else if (instruction == "pop") {
         // Expect the segment name, followed by the index.
         std::regex push_pop_pattern(R"(^(push|pop) +([a-zA-Z]+) +([0-9]+))");
@@ -94,8 +98,8 @@ bool VMParser::parse() {
         }
         _arg1 = matches[2];
         _arg2 = stoi(matches[3]);
-        _command_type = VMOperationType::C_POP;
-    } else if (instruction == "add" || instruction == "sub" || instruction == "and" || instruction == "or" || instruction == "eq" || instruction == "gt" || instruction == "lt" || instruction == "neg" || instruction == "not") {
+        _instruction_type = VMOperationType::C_POP;
+    } else if (_arithmetic_logic_operators.find(instruction) != _arithmetic_logic_operators.end()) {
         // If additional arguments were supplied, then the instruction is invalid.
         std::regex arithmetic_logic_pattern(R"(^[a-zA-Z]+)");
         std::smatch matches;
@@ -107,12 +111,30 @@ bool VMParser::parse() {
         // Clear _arg1 and _arg2.
         _arg1 = "";
         _arg2 = -1;
-        _command_type = VMOperationType::C_ARITHMETIC;
+        _instruction_type = VMOperationType::C_ARITHMETIC;
+    } else if (instruction == "label") {
+        // TODO: IMPLEMENT ME.
+        _instruction_type = VMOperationType::C_LABEL;
+    } else if (instruction == "goto") {
+        // TODO: IMPLEMENT ME.
+        _instruction_type = VMOperationType::C_GOTO;
+    } else if (instruction == "if-goto") {
+        // TODO: IMPLEMENT ME.
+        _instruction_type = VMOperationType::C_IF;
+    } else if (instruction == "function") {
+        // TODO: IMPLEMENT ME.
+        _instruction_type = VMOperationType::C_FUNCTION;
+    } else if (instruction == "call") {
+        // TODO: IMPLEMENT ME.
+        _instruction_type = VMOperationType::C_CALL;
+    } else if (instruction == "return") {
+        // TODO: IMPLEMENT ME.
+        _instruction_type = VMOperationType::C_RETURN;
     } else {
         // Clear _arg1 and _arg2.
         _arg1 = "";
         _arg2 = -1;
-        _command_type = VMOperationType::INVALID;
+        _instruction_type = VMOperationType::INVALID;
         return false;
     }
     return true;
@@ -120,7 +142,7 @@ bool VMParser::parse() {
 
 void VMParser::show_instruction_debug_info() {
     std::cout << "Line " << _curr_line << ") " << _curr_instruction << "\n";
-    switch (_command_type) {
+    switch (_instruction_type) {
         case VMOperationType::C_ARITHMETIC:
             std::cout << "\tInstruction: arithmetic" << "\n";
             break;

@@ -42,6 +42,10 @@ AsmMapper::AsmMapper(const std::string& asm_output_file_path)
       _label_count(0) {
 }
 
+void AsmMapper::start_new_translation_unit(const std::string& source_vm_path) {
+
+}
+
 /**
  * Assumes that the given command is valid.
  * 
@@ -240,6 +244,30 @@ void AsmMapper::write_pop(const std::string& command,
     } else {
         std::cerr << "Syntax Error: unknown segment '" << segment << "'\n";
     }
+}
+
+void AsmMapper::write_label(const std::string& label) {
+
+}
+
+void AsmMapper::write_goto(const std::string& label) {
+
+}
+
+void AsmMapper::write_if(const std::string& label) {
+
+}
+
+void AsmMapper::write_function(const std::string& function_name, const int& num_params) {
+
+}
+
+void AsmMapper::write_call(const std::string& function_name, const int& num_params) {
+
+}
+
+void AsmMapper::write_return() {
+
 }
 
 void AsmMapper::write_inf_loop() {

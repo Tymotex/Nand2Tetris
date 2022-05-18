@@ -38,7 +38,7 @@ no need to be aware of this though, as the VM translator.
 # VM Translator (Part II)
 
 Part 2 is about introducing branching capabilities to the Jack VM instruction
-language. 
+language:
 
 - `label <label>` - creates a label symbol with associated address.
 - `goto <label>` - unconditionally jumps to the address associated with the given label.
@@ -52,3 +52,7 @@ language.
 
 `VMTranslator` should now take in either a filename or a directory name containing .vm files (and no subdirectories).
 
+TODO: remove me
+Plan: 
+3. Implement the first 3 branching instructions in AsmMapper.cc.
+    Note: do it on paper first.

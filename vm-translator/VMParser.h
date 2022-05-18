@@ -3,6 +3,8 @@
 
 #include <string>
 #include <fstream>
+#include <unordered_set>
+#include <regex>
 
 enum class VMOperationType {
     C_ARITHMETIC,
@@ -12,8 +14,8 @@ enum class VMOperationType {
     C_GOTO,
     C_IF,
     C_FUNCTION,
-    C_RETURN,
     C_CALL,
+    C_RETURN,
     INVALID
 };
 
@@ -57,14 +59,30 @@ public:
     std::string get_curr_instruction();
 
 private:
+    // Set of arithmetic-logic VM instructions:
+    static std::unordered_set<std::string> _arithmetic_logic_operators;
+
+    // Stream of source VM instructions to map to Hack assembly. 
     std::ifstream _vm_in;
+
+    // Cursor variables. These will always progress forward.
     std::string _curr_instruction;
     int _curr_line;
-    VMOperationType _command_type;
 
+    // The type of the command for the current instruction. The `VMTranslator`
+    // class uses this to know how to delegate translation tasks to `AsmMapper`.
+    VMOperationType _instruction_type;
+
+    // Some VM instructions will have arguments. Eg. `push <segment> <val>`.
+    // There will never be more than 2 arguments, and the second will always
+    // be an integer no matter what the instruction type is.
     std::string _arg1;
     int _arg2;
 
+    // Regex patterns for extracting arguments (via capture groups) from various
+    // VM instruction formats.
+    // TODO:
+    
     // Applies transformations to the current instruction to normalise it for
     // parsing.
     void preprocess();
@@ -73,6 +91,7 @@ private:
     // _arg2. Returns true if the instruction is valid.
     bool parse();
 
+    // Prints to `stdout` parsing debugging information.
     void show_instruction_debug_info();
 };
 

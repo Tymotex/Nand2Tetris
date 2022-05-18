@@ -15,6 +15,12 @@ public:
     explicit AsmMapper(const std::string& asm_output_file_path);
 
     /**
+     * Opens a new write `ofstream` for a new .vm input file. Closes the current
+     * `ofstream`.
+     */
+    void start_new_translation_unit(const std::string& source_vm_path);
+
+    /**
      * Writes the corresponding Hack assembly code for the given command into
      * the output .asm file.
      */
@@ -31,6 +37,43 @@ public:
      */
     void write_pop(const std::string& command, const std::string& segment,
         const int& index);
+
+    /**
+     * Writes the corresponding Hack assembly code for declaring a new 
+     * non-function label.
+     */
+    void write_label(const std::string& label);
+
+    /**
+     * Writes the corresponding Hack assembly code for unconditionally jumping
+     * to a new instruction address.
+     */
+    void write_goto(const std::string& label);
+
+    /**
+     * Writes the corresponding Hack assembly code for conditionally jumping to
+     * a new instruction address.
+     * When if-goto is used, we only jump if the item at the top of the stack
+     * is non-zero.
+     */
+    void write_if(const std::string& label);
+
+    /**
+     * Writes the corresponding Hack assembly code for declaring a new function.
+     */
+    void write_function(const std::string& function_name, const int& num_params);
+
+    /**
+     * Writes the corresponding Hack assembly code for invoking a function.
+     */
+    void write_call(const std::string& function_name, const int& num_params);
+
+    /**
+     * Writes the corresponding Hack assembly code for terminating the current
+     * function, restoring the caller's state and resuming execution from where
+     * the caller invoked the function.
+     */
+    void write_return();
 
     /**
      * Inserts a final infinite loop at the end of the Hack assembly program.
@@ -64,6 +107,7 @@ private:
     // Pointer segment: pointer
     static std::string _pointer_segment;
 
+    // VM instruction to Hack instruction/operator maps.
     static std::unordered_map<std::string, const char> _arithmetic_logical_binary_op;
     static std::unordered_map<std::string, const char> _arithmetic_logical_unary_op;
     static std::unordered_map<std::string, std::string> _comparison_op;

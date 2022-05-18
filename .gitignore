@@ -2,4 +2,4 @@ tools/
 .vscode/
 build/
 *.o
-sample-files/
+sample-files*/

@@ -22,11 +22,8 @@ bool is_vm_file(const std::string& path);
 std::string get_directory_of_file(const std::string& path);
 
 int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        std::cerr << "Insufficient arguments. Please supply a path to the .vm source file.\n";
-    } else if (argc > 3) {
-        std::cerr << "Too many arguments.\n";
-    }
+    if (argc < 2) std::cerr << "Insufficient arguments. Please supply a path to the .vm source file.\n";
+    else if (argc > 3) std::cerr << "Too many arguments.\n";
 
     std::string input_file_path = argv[1];
 
@@ -48,9 +45,8 @@ int main(int argc, char* argv[]) {
         // Translate each .vm file in the given directory.
         for (const std::filesystem::directory_entry& each_file : std::filesystem::directory_iterator(input_file_path)) {
             std::cout << argv[0] << ": Processing " << each_file.path() << "\n";
-            if (is_vm_file(each_file.path())) {
+            if (is_vm_file(each_file.path()))
                 translate_vm_file_to_asm_file(each_file.path(), output_dir);
-            }
         }
     } else {
         std::cout << argv[0] << ": Translating a single file.\n\n";
@@ -77,6 +73,24 @@ void translate_vm_file_to_asm_file(const std::string& path, const std::string& o
                 break;
             case VMOperationType::C_POP:
                 code_mapper.write_pop(parser.get_curr_instruction(), parser.arg1(), parser.arg2());
+                break;
+            case VMOperationType::C_LABEL:
+                code_mapper.write_label(parser.arg1());
+                break;
+            case VMOperationType::C_GOTO:
+                code_mapper.write_goto(parser.arg1());
+                break;
+            case VMOperationType::C_IF:
+                code_mapper.write_if(parser.arg1());
+                break;
+            case VMOperationType::C_FUNCTION:
+                code_mapper.write_function(parser.arg1(), parser.arg2());
+                break;
+            case VMOperationType::C_CALL:
+                code_mapper.write_call(parser.arg1(), parser.arg2());
+                break;
+            case VMOperationType::C_RETURN:
+                code_mapper.write_return();
                 break;
             default:
                 break;
