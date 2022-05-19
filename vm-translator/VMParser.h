@@ -88,7 +88,15 @@ private:
 
     // Regex patterns for extracting arguments (via capture groups) from various
     // VM instruction formats.
-    // TODO:
+    static std::regex _push_pop_pattern;
+    static std::regex _arithmetic_logic_pattern;
+    static std::regex _label_pattern;
+    static std::regex _goto_pattern;
+    static std::regex _if_pattern;
+    static std::regex _function_pattern;
+    static std::regex _call_pattern;
+    static std::regex _return_pattern;
+    static std::smatch _matches;
     
     // Applies transformations to the current instruction to normalise it for
     // parsing.
