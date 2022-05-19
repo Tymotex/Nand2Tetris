@@ -19,6 +19,10 @@ std::regex VMParser::_call_pattern             = std::regex(R"(^call +(\S+) +([0
 std::regex VMParser::_return_pattern           = std::regex(R"(^return)");
 std::smatch VMParser::_matches                 = std::smatch();
 
+// Empty argument constants.
+constexpr std::string_view EMPTY_ARG1 = ""; 
+constexpr int EMPTY_ARG2 = -1;
+
 VMParser::VMParser(const std::string& vm_source_file_path) 
     : _vm_in(std::ifstream(vm_source_file_path)),
       _curr_line(0) {
@@ -31,8 +35,8 @@ bool VMParser::has_more_lines() {
 void VMParser::advance() {
     if (!std::getline(_vm_in, _curr_instruction)) {
         _instruction_type = VMOperationType::INVALID;
-        _arg1 = "";
-        _arg2 = -1;
+        _arg1 = EMPTY_ARG1; 
+        _arg2 = EMPTY_ARG2;
         return;
     }
     ++_curr_line;
@@ -117,8 +121,8 @@ bool VMParser::parse() {
             return false;
         }
         // Clear _arg1 and _arg2.
-        _arg1 = "";
-        _arg2 = -1;
+        _arg1 = EMPTY_ARG1; 
+        _arg2 = EMPTY_ARG2;
         _instruction_type = VMOperationType::C_ARITHMETIC;
     } else if (instruction == "label") {
         if (!std::regex_search(_curr_instruction, _matches, _label_pattern)) {
@@ -126,7 +130,7 @@ bool VMParser::parse() {
             return false;
         }
         _arg1 = _matches[1];
-        _arg2 = -1;
+        _arg2 = EMPTY_ARG2;
         _instruction_type = VMOperationType::C_LABEL;
     } else if (instruction == "goto") {
         if (!std::regex_search(_curr_instruction, _matches, _goto_pattern)) {
@@ -134,7 +138,7 @@ bool VMParser::parse() {
             return false;
         }
         _arg1 = _matches[1];
-        _arg2 = -1;
+        _arg2 = EMPTY_ARG2;
         _instruction_type = VMOperationType::C_GOTO;
     } else if (instruction == "if-goto") {
         if (!std::regex_search(_curr_instruction, _matches, _if_pattern)) {
@@ -142,7 +146,7 @@ bool VMParser::parse() {
             return false;
         }
         _arg1 = _matches[1];
-        _arg2 = -1;
+        _arg2 = EMPTY_ARG2;
         _instruction_type = VMOperationType::C_IF;
     } else if (instruction == "function") {
         if (!std::regex_search(_curr_instruction, _matches, _function_pattern)) {
@@ -167,13 +171,13 @@ bool VMParser::parse() {
             return false;
         }
         // Clear arguments.
-        _arg1 = "";
-        _arg1 = -1;
+        _arg1 = EMPTY_ARG1; 
+        _arg2 = EMPTY_ARG2;
         _instruction_type = VMOperationType::C_RETURN;
     } else {
         // Clear _arg1 and _arg2.
-        _arg1 = "";
-        _arg2 = -1;
+        _arg1 = EMPTY_ARG1; 
+        _arg2 = EMPTY_ARG2;
         _instruction_type = VMOperationType::INVALID;
         return false;
     }
