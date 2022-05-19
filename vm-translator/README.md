@@ -51,8 +51,3 @@ language:
     - The VM Translator generates assembly code responsible for copying the return value to the top of the caller's working stack and restores state that is expected to be unchanged, and jumps back to the return address.
 
 `VMTranslator` should now take in either a filename or a directory name containing .vm files (and no subdirectories).
-
-TODO: remove me
-Plan: 
-3. Implement the first 3 branching instructions in AsmMapper.cc.
-    Note: do it on paper first.

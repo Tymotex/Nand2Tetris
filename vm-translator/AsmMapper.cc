@@ -37,13 +37,20 @@ std::unordered_map<std::string, std::string> AsmMapper::_comparison_op = {
     {"lt", "JLT"}
 };
 
-AsmMapper::AsmMapper(const std::string& asm_output_file_path)
-    : _asm_out(std::ofstream(asm_output_file_path)),
-      _label_count(0) {
+AsmMapper::AsmMapper(const std::string& asm_output_file_path, 
+        const std::string& translation_unit_name) {
+    start_new_translation_unit(asm_output_file_path, translation_unit_name);
 }
 
-void AsmMapper::start_new_translation_unit(const std::string& source_vm_path) {
+void AsmMapper::start_new_translation_unit(const std::string& asm_output_file_path,
+        const std::string& translation_unit_name) {
+    // Close previous output file stream.
+    if (_asm_out.is_open()) _asm_out.close();
 
+    // Initialise new .asm output stream.
+    _asm_out = std::ofstream(asm_output_file_path);
+    _trans_unit_name = translation_unit_name;
+    _label_count = 0;
 }
 
 /**
@@ -121,17 +128,17 @@ void AsmMapper::write_arithmetic(const std::string& command) {
 }
 
 void AsmMapper::push_to_stack() {
-    _asm_out << "\t@SP\n"
+    _asm_out << "\t@SP   // Pushing to stack.\n"
              << "\tM = M + 1\n"
              << "\tA = M - 1\n"
-             << "\tM = D\n";
+             << "\tM = D // Done pushing.\n";
 }
 
 void AsmMapper::pop_from_stack() {
-    _asm_out << "\t@SP\n"
+    _asm_out << "\t@SP   // Popping from stack.\n"
              << "\tM = M - 1\n"
              << "\tA = M\n"
-             << "\tD = M\n";
+             << "\tD = M // Done popping.\n";
 }
 
 /**
@@ -246,37 +253,72 @@ void AsmMapper::write_pop(const std::string& command,
     }
 }
 
-void AsmMapper::write_label(const std::string& label) {
+void AsmMapper::write_label(const std::string& command, const std::string& label, const std::string& function_name) {
+    _asm_out << "// " << command << "\n";
+    if (function_name.empty()) {
+        const std::string label_name = _trans_unit_name + "." + label;
+        _asm_out << "(" << label_name << ")\n";
+    } else {
+        const std::string label_name = _trans_unit_name + "." + function_name + "$" + label;
+        _asm_out << "(" << label_name << ")\n";
+    }
+}
+
+void AsmMapper::write_goto(const std::string& command, const std::string& label, const std::string& function_name) {
+    _asm_out << "// " << command << "\n";
+    const std::string dest_name = get_dest_name(label, function_name);
+    _asm_out << "\t@"  << dest_name << "\n" 
+                << "\t0;JMP\n";
+}
+
+void AsmMapper::write_if(const std::string& command, const std::string& label, const std::string& function_name) {
+    _asm_out << "// " << command << "\n";
+    const std::string dest_name = get_dest_name(label, function_name);
+    pop_from_stack();
+    _asm_out << "\t@" << dest_name << " // Conditional jump.\n"
+             << "\tD;JNE\n";
+}
+
+void AsmMapper::write_function(const std::string& command, const std::string& function_name, const int& num_params) {
+    _asm_out << "// " << command << "\n";
 
 }
 
-void AsmMapper::write_goto(const std::string& label) {
+void AsmMapper::write_call(const std::string& command, const std::string& function_name, const int& num_params) {
+    _asm_out << "// " << command << "\n";
 
 }
 
-void AsmMapper::write_if(const std::string& label) {
-
-}
-
-void AsmMapper::write_function(const std::string& function_name, const int& num_params) {
-
-}
-
-void AsmMapper::write_call(const std::string& function_name, const int& num_params) {
-
-}
-
-void AsmMapper::write_return() {
+void AsmMapper::write_return(const std::string& command, const std::string& function_name) {
+    _asm_out << "// " << command << "\n";
 
 }
 
 void AsmMapper::write_inf_loop() {
-    _asm_out << "// Final infinite loop.\n";
+    _asm_out << "// ===== Final infinite loop =====\n";
     _asm_out << "(END_INF)\n"
              << "\t@END_INF\n"
-             << "\t0;JEQ\n";
+             << "\t0;JEQ\n"
+             << "// Done.";
+}
+
+void AsmMapper::write_bootstrap_init() {
+    _asm_out << "// ===== Boostrap Start =====\n"
+             << "@256  // Initialise stack pointer to base of stack.\n"
+             << "D = A\n"
+             << "@SP\n"
+             << "M = D // Done initialising stack pointer.\n"
+             << "// ===== Boostrap End =====\n";
 }
 
 void AsmMapper::close() {
     _asm_out.close();
+}
+
+std::string AsmMapper::get_dest_name(const std::string& label, const std::string& function_name) {
+    if (label.empty()) {
+        std::cerr << "Syntax Error: empty label.\n";
+        return label;
+    }
+    return _trans_unit_name + "." + (function_name.empty() ? "" : function_name + "$") + label;
 }

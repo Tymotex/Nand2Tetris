@@ -11,14 +11,18 @@ public:
     /**
      * Opens a file output stream for writing the translated VM instructions to.
      * Expects the output file path to have the .asm extension.
+     * The translation unit name should be the basename of the source file in
+     * most cases.
      */
-    explicit AsmMapper(const std::string& asm_output_file_path);
+    explicit AsmMapper(const std::string& asm_output_file_path,
+        const std::string& translation_unit_name);
 
     /**
      * Opens a new write `ofstream` for a new .vm input file. Closes the current
      * `ofstream`.
      */
-    void start_new_translation_unit(const std::string& source_vm_path);
+    void start_new_translation_unit(const std::string& asm_output_file_path,
+        const std::string& translation_unit_name);
 
     /**
      * Writes the corresponding Hack assembly code for the given command into
@@ -42,13 +46,13 @@ public:
      * Writes the corresponding Hack assembly code for declaring a new 
      * non-function label.
      */
-    void write_label(const std::string& label);
+    void write_label(const std::string& command, const std::string& label, const std::string& function_name);
 
     /**
      * Writes the corresponding Hack assembly code for unconditionally jumping
      * to a new instruction address.
      */
-    void write_goto(const std::string& label);
+    void write_goto(const std::string& command, const std::string& label, const std::string& function_name);
 
     /**
      * Writes the corresponding Hack assembly code for conditionally jumping to
@@ -56,24 +60,24 @@ public:
      * When if-goto is used, we only jump if the item at the top of the stack
      * is non-zero.
      */
-    void write_if(const std::string& label);
+    void write_if(const std::string& command, const std::string& label, const std::string& function_name);
 
     /**
      * Writes the corresponding Hack assembly code for declaring a new function.
      */
-    void write_function(const std::string& function_name, const int& num_params);
+    void write_function(const std::string& command, const std::string& function_name, const int& num_params);
 
     /**
      * Writes the corresponding Hack assembly code for invoking a function.
      */
-    void write_call(const std::string& function_name, const int& num_params);
+    void write_call(const std::string& command, const std::string& function_name, const int& num_params);
 
     /**
      * Writes the corresponding Hack assembly code for terminating the current
      * function, restoring the caller's state and resuming execution from where
      * the caller invoked the function.
      */
-    void write_return();
+    void write_return(const std::string& command, const std::string& function_name);
 
     /**
      * Inserts a final infinite loop at the end of the Hack assembly program.
@@ -81,11 +85,18 @@ public:
     void write_inf_loop();
 
     /**
+     * Inserts the bootstrapping code for initialising special registers.
+     */
+    void write_bootstrap_init();
+
+    /**
      * Closes the output file stream.
      */
     void close();
 private:
+    // Hack assembly file output stream (write mode).
     std::ofstream _asm_out;
+    std::string _trans_unit_name;
 
     // Pre-defined segments: static and temp.
     // The base addresses of these segments are:
@@ -120,6 +131,8 @@ private:
     void push_to_stack();
     // Writes the assembly code necessary to pop a value from the stack into D.
     void pop_from_stack();
+
+    std::string get_dest_name(const std::string& label, const std::string& function_name);
 };
 
 #endif

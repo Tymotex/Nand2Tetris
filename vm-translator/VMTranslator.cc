@@ -57,14 +57,17 @@ int main(int argc, char* argv[]) {
 }
 
 void translate_vm_file_to_asm_file(const std::string& path, const std::string& output_dir) {
-    std::string output_file_path = output_dir + get_basename(path) + ".asm";
+    std::string basename = get_basename(path);
+    std::string output_file_path = output_dir + basename + ".asm";
 
-    AsmMapper code_mapper(output_file_path);
+    AsmMapper code_mapper(output_file_path, basename);
     VMParser parser(path);
+
+    code_mapper.write_bootstrap_init();
 
     while (parser.has_more_lines()) {
         parser.advance();
-        switch (parser.command_type()) {
+        switch (parser.instruction_type()) {
             case VMOperationType::C_ARITHMETIC:
                 code_mapper.write_arithmetic(parser.get_curr_instruction());
                 break;
@@ -75,22 +78,22 @@ void translate_vm_file_to_asm_file(const std::string& path, const std::string& o
                 code_mapper.write_pop(parser.get_curr_instruction(), parser.arg1(), parser.arg2());
                 break;
             case VMOperationType::C_LABEL:
-                code_mapper.write_label(parser.arg1());
+                code_mapper.write_label(parser.get_curr_instruction(), parser.arg1(), parser.curr_function_name());
                 break;
             case VMOperationType::C_GOTO:
-                code_mapper.write_goto(parser.arg1());
+                code_mapper.write_goto(parser.get_curr_instruction(), parser.arg1(), parser.curr_function_name());
                 break;
             case VMOperationType::C_IF:
-                code_mapper.write_if(parser.arg1());
+                code_mapper.write_if(parser.get_curr_instruction(), parser.arg1(), parser.curr_function_name());
                 break;
             case VMOperationType::C_FUNCTION:
-                code_mapper.write_function(parser.arg1(), parser.arg2());
+                code_mapper.write_function(parser.get_curr_instruction(), parser.arg1(), parser.arg2());
                 break;
             case VMOperationType::C_CALL:
-                code_mapper.write_call(parser.arg1(), parser.arg2());
+                code_mapper.write_call(parser.get_curr_instruction(), parser.arg1(), parser.arg2());
                 break;
             case VMOperationType::C_RETURN:
-                code_mapper.write_return();
+                code_mapper.write_return(parser.get_curr_instruction(), parser.curr_function_name());
                 break;
             default:
                 break;

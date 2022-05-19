@@ -39,7 +39,13 @@ public:
      * Gets the current line of VM's command type. It can be an arithmetic type,
      * push/pop, label, goto, etc. 
      */
-    VMOperationType command_type();
+    VMOperationType instruction_type();
+
+    /**
+     * Retrieves the name of the function whose definition the cursor, 
+     * `_curr_line`, is within.
+     */
+    std::string curr_function_name();
 
     /**
      * Extracts the first argument from the current VM instruction. In the case
@@ -67,6 +73,7 @@ private:
 
     // Cursor variables. These will always progress forward.
     std::string _curr_instruction;
+    std::string _curr_function_name;
     int _curr_line;
 
     // The type of the command for the current instruction. The `VMTranslator`
