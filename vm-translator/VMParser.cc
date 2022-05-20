@@ -17,7 +17,7 @@ std::regex VMParser::_if_pattern               = std::regex(R"(^if-goto +(\S+))"
 std::regex VMParser::_function_pattern         = std::regex(R"(^function +(\S+) +([0-9]+))");
 std::regex VMParser::_call_pattern             = std::regex(R"(^call +(\S+) +([0-9]+))");
 std::regex VMParser::_return_pattern           = std::regex(R"(^return)");
-std::smatch VMParser::_matches                 = std::smatch();
+std::smatch VMParser::_match_results           = std::smatch();
 
 // Empty argument constants.
 constexpr std::string_view EMPTY_ARG1 = ""; 
@@ -25,7 +25,8 @@ constexpr int EMPTY_ARG2 = -1;
 
 VMParser::VMParser(const std::string& vm_source_file_path) 
     : _vm_in(std::ifstream(vm_source_file_path)),
-      _curr_line(0) {
+      _curr_line(0),
+      _return_counter(0) {
 }
 
 bool VMParser::has_more_lines() {
@@ -64,6 +65,10 @@ std::string VMParser::get_curr_instruction() {
     return _curr_instruction;
 }
 
+int VMParser::get_return_couter() {
+    return _return_counter;
+}
+
 void VMParser::preprocess() {
     // Strips all leading whitespace.
     const std::string WHITESPACE = " \n\r\t\f\v";
@@ -98,25 +103,25 @@ bool VMParser::parse() {
     // _arg2.
     if (instruction == "push") {
         // Expect the segment name, followed by the index.
-        if (!std::regex_search(_curr_instruction, _matches, _push_pop_pattern)) {
+        if (!std::regex_search(_curr_instruction, _match_results, _push_pop_pattern)) {
             std::cerr << "Syntax Error: push/pop commands expect 2 args.\n";
             return false;
         }
-        _arg1 = _matches[2];
-        _arg2 = stoi(_matches[3]);
+        _arg1 = _match_results[2];
+        _arg2 = stoi(_match_results[3]);
         _instruction_type = VMOperationType::C_PUSH;
     } else if (instruction == "pop") {
         // Expect the segment name, followed by the index.
-        if (!std::regex_search(_curr_instruction, _matches, _push_pop_pattern)) {
+        if (!std::regex_search(_curr_instruction, _match_results, _push_pop_pattern)) {
             std::cerr << "Syntax Error: push/pop commands expect 2 args.\n";
             return false;
         }
-        _arg1 = _matches[2];
-        _arg2 = stoi(_matches[3]);
+        _arg1 = _match_results[2];
+        _arg2 = stoi(_match_results[3]);
         _instruction_type = VMOperationType::C_POP;
     } else if (_arithmetic_logic_operators.find(instruction) != _arithmetic_logic_operators.end()) {
         // If additional arguments were supplied, then the instruction is invalid.
-        if (!std::regex_search(_curr_instruction, _matches, _arithmetic_logic_pattern)) {
+        if (!std::regex_search(_curr_instruction, _match_results, _arithmetic_logic_pattern)) {
             std::cerr << "Syntax Error: arithmetic/logical instructions expect no arguments.\n";
             return false;
         }
@@ -125,48 +130,52 @@ bool VMParser::parse() {
         _arg2 = EMPTY_ARG2;
         _instruction_type = VMOperationType::C_ARITHMETIC;
     } else if (instruction == "label") {
-        if (!std::regex_search(_curr_instruction, _matches, _label_pattern)) {
+        if (!std::regex_search(_curr_instruction, _match_results, _label_pattern)) {
             std::cerr << "Syntax Error: label expects 1 argument.\n";
             return false;
         }
-        _arg1 = _matches[1];
+        _arg1 = _match_results[1];
         _arg2 = EMPTY_ARG2;
         _instruction_type = VMOperationType::C_LABEL;
     } else if (instruction == "goto") {
-        if (!std::regex_search(_curr_instruction, _matches, _goto_pattern)) {
+        if (!std::regex_search(_curr_instruction, _match_results, _goto_pattern)) {
             std::cerr << "Syntax Error: goto expects 1 argument.\n";
             return false;
         }
-        _arg1 = _matches[1];
+        _arg1 = _match_results[1];
         _arg2 = EMPTY_ARG2;
         _instruction_type = VMOperationType::C_GOTO;
     } else if (instruction == "if-goto") {
-        if (!std::regex_search(_curr_instruction, _matches, _if_pattern)) {
+        if (!std::regex_search(_curr_instruction, _match_results, _if_pattern)) {
             std::cerr << "Syntax Error: if-goto expects 1 argument.\n";
             return false;
         }
-        _arg1 = _matches[1];
+        _arg1 = _match_results[1];
         _arg2 = EMPTY_ARG2;
         _instruction_type = VMOperationType::C_IF;
     } else if (instruction == "function") {
-        if (!std::regex_search(_curr_instruction, _matches, _function_pattern)) {
+        if (!std::regex_search(_curr_instruction, _match_results, _function_pattern)) {
             std::cerr << "Syntax Error: invalid function declaration.\n";
             return false;
         }
-        _curr_function_name = _matches[1];
-        _arg1 = _matches[1];
-        _arg2 = stoi(_matches[2]);
+        _curr_function_name = _match_results[1];
+        // Reset the return counter so that we can maintain a new running return
+        // address label ID for the new function body that we're in.
+        _return_counter = 0;
+        _arg1 = _match_results[1];
+        _arg2 = stoi(_match_results[2]);
         _instruction_type = VMOperationType::C_FUNCTION;
     } else if (instruction == "call") {
-        if (!std::regex_search(_curr_instruction, _matches, _call_pattern)) {
+        if (!std::regex_search(_curr_instruction, _match_results, _call_pattern)) {
             std::cerr << "Syntax Error: invalid function invocation.\n";
             return false;
         }
-        _arg1 = _matches[1];
-        _arg1 = stoi(_matches[2]);
+        _arg1 = _match_results[1];
+        _arg1 = stoi(_match_results[2]);
+        ++_return_counter;
         _instruction_type = VMOperationType::C_CALL;
     } else if (instruction == "return") {
-        if (!std::regex_search(_curr_instruction, _matches, _return_pattern)) {
+        if (!std::regex_search(_curr_instruction, _match_results, _return_pattern)) {
             std::cerr << "Syntax Error: invalid return statement.\n";
             return false;
         }

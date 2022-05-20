@@ -65,12 +65,14 @@ public:
     /**
      * Writes the corresponding Hack assembly code for declaring a new function.
      */
-    void write_function(const std::string& command, const std::string& function_name, const int& num_params);
+    void write_function(const std::string& command, const std::string& function_name, const int& num_local_vars);
 
     /**
      * Writes the corresponding Hack assembly code for invoking a function.
+     * The `return_counter` value is used to construct the label that marks the return
+     * address after the callee terminates.
      */
-    void write_call(const std::string& command, const std::string& function_name, const int& num_params);
+    void write_call(const std::string& command, const std::string& function_name, const int& num_args, const int& return_counter);
 
     /**
      * Writes the corresponding Hack assembly code for terminating the current
@@ -127,9 +129,18 @@ private:
     // create name collisions.
     int _label_count;
 
-    // Writes the assembly code necessary to push a value in D onto the stack.
+    // Writes the assembly code necessary to push the contents of D onto the stack.
     void push_to_stack();
+    
+    // Writes the assembly code necessary to push a given value onto the stack.
+    // Pushes the contents of A if `use_register_a` is enabled, else pushes the
+    // contents of M.
+    template <typename T>
+    void push_to_stack(const T& value, const bool& use_register_a);
+
+
     // Writes the assembly code necessary to pop a value from the stack into D.
+    // After invocation, the A register will be set to SP - 1.
     void pop_from_stack();
 
     std::string get_dest_name(const std::string& label, const std::string& function_name);

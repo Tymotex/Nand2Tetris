@@ -64,6 +64,12 @@ public:
      */
     std::string get_curr_instruction();
 
+    /**
+     * Returns the return counter that serves to uniquely identify the return
+     * label in the .asm output.
+     */
+    int get_return_couter();
+
 private:
     // Set of arithmetic-logic VM instructions:
     static std::unordered_set<std::string> _arithmetic_logic_operators;
@@ -75,6 +81,13 @@ private:
     std::string _curr_instruction;
     std::string _curr_function_name;
     int _curr_line;
+
+    /**
+     * This counter can just be a running
+     * integer incremented for each `call` VM instruction encountered in the
+     * current function by VMParser.
+     */
+    int _return_counter;
 
     // The type of the command for the current instruction. The `VMTranslator`
     // class uses this to know how to delegate translation tasks to `AsmMapper`.
@@ -96,7 +109,7 @@ private:
     static std::regex _function_pattern;
     static std::regex _call_pattern;
     static std::regex _return_pattern;
-    static std::smatch _matches;
+    static std::smatch _match_results;
     
     // Applies transformations to the current instruction to normalise it for
     // parsing.

@@ -63,7 +63,7 @@ void translate_vm_file_to_asm_file(const std::string& path, const std::string& o
     AsmMapper code_mapper(output_file_path, basename);
     VMParser parser(path);
 
-    code_mapper.write_bootstrap_init();
+    // code_mapper.write_bootstrap_init();
 
     while (parser.has_more_lines()) {
         parser.advance();
@@ -90,7 +90,7 @@ void translate_vm_file_to_asm_file(const std::string& path, const std::string& o
                 code_mapper.write_function(parser.get_curr_instruction(), parser.arg1(), parser.arg2());
                 break;
             case VMOperationType::C_CALL:
-                code_mapper.write_call(parser.get_curr_instruction(), parser.arg1(), parser.arg2());
+                code_mapper.write_call(parser.get_curr_instruction(), parser.arg1(), parser.arg2(), parser.get_return_couter());
                 break;
             case VMOperationType::C_RETURN:
                 code_mapper.write_return(parser.get_curr_instruction(), parser.curr_function_name());

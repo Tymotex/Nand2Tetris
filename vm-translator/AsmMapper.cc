@@ -94,11 +94,8 @@ void AsmMapper::write_arithmetic(const std::string& command) {
     if (_arithmetic_logical_binary_op.find(command) != _arithmetic_logical_binary_op.end()) {
         // Binary arithmetic/logic operation.
         const char op_character = _arithmetic_logical_binary_op[command];
-        _asm_out << "\t@SP\n"        
-                 << "\tM = M - 1\n"
-                 << "\tA = M\n"
-                 << "\tD = M\n"
-                 << "\tA = A - 1\n"  
+        pop_from_stack();             // D contains first operand.
+        _asm_out << "\tA = A - 1\n"   // M contains second operand.
                  << "\tM = M " << op_character << " D\n";
     } else if (_arithmetic_logical_unary_op.find(command) != _arithmetic_logical_unary_op.end()) {
         // Unary arithmetic/logic operation.
@@ -109,11 +106,8 @@ void AsmMapper::write_arithmetic(const std::string& command) {
     } else if (_comparison_op.find(command) != _comparison_op.end()) {
         // Comparison operation.
         const std::string jump_instr = _comparison_op[command];
-        _asm_out << "\t@SP\n"      
-                 << "\tM = M - 1\n"
-                 << "\tA = M\n"
-                 << "\tD = M\n"
-                 << "\tA = A - 1\n" 
+        pop_from_stack();             // D contains first operand.
+        _asm_out << "\tA = A - 1\n"   // M contains second operand.
                  << "\tD = M - D\n"
                  << "\tM = -1\n"
                  << "\t@COMP_" << _label_count << "\n"
@@ -132,6 +126,16 @@ void AsmMapper::push_to_stack() {
              << "\tM = M + 1\n"
              << "\tA = M - 1\n"
              << "\tM = D // Done pushing.\n";
+}
+
+template <typename T>
+void AsmMapper::push_to_stack(const T& value, const bool& use_register_a) {
+    // Set the D register to the given value. If an integer was given, then we
+    // load D with that integer. If a symbol (string) was given, then we load
+    // D with the contents at that symbol's memory address (ie. the M register).
+    _asm_out << "\t@" << value << "\n"
+             << "\tD = " << (use_register_a ? "A" : "M") << "\n";
+    push_to_stack();
 }
 
 void AsmMapper::pop_from_stack() {
@@ -279,19 +283,126 @@ void AsmMapper::write_if(const std::string& command, const std::string& label, c
              << "\tD;JNE\n";
 }
 
-void AsmMapper::write_function(const std::string& command, const std::string& function_name, const int& num_params) {
+void AsmMapper::write_function(const std::string& command, const std::string& function_name, const int& num_local_vars) {
     _asm_out << "// " << command << "\n";
 
+    // Create label and push to the stack `num_local_vars` local variables whose
+    // values are 0.
+    _asm_out << "(" << function_name << ")  // Function declaration.\n";
+    for (int i = 0; i < num_local_vars; ++i)
+        push_to_stack(0, true);
 }
 
-void AsmMapper::write_call(const std::string& command, const std::string& function_name, const int& num_params) {
+void AsmMapper::write_call(const std::string& command, const std::string& target_function_name, const int& num_args, const int& return_counter) {
     _asm_out << "// " << command << "\n";
+    
+    const std::string return_label = _trans_unit_name + "." + target_function_name + "$ret." + std::to_string(return_counter);
 
+    // Save return address that the callee returns to.
+    push_to_stack(return_label, true);
+
+    // Saves caller's state.
+    push_to_stack("LCL", false);
+    push_to_stack("ARG", false);
+    push_to_stack("THIS", false);
+    push_to_stack("THAT", false);
+
+    // Point ARG to the base address where the callee can expect its `num_args`
+    // arguments.
+    // Ie. we set ARG = (SP - 5) - num_args.
+    push_to_stack("SP", false);
+    push_to_stack(5, true);
+    write_arithmetic("sub");
+    push_to_stack(num_args, true);
+    write_arithmetic("sub");
+
+    pop_from_stack();
+    _asm_out << "\t@ARG\n"
+             << "\tM = D\n";
+
+    // Point LCL to the base address where the callee can expect its local
+    // variables to start from. 
+    _asm_out << "\t@SP\n"
+             << "\tD = M\n"
+             << "\t@LCL\n"
+             << "\tM = D\n";
+
+    // Jump to callee.
+    _asm_out << "\t@"  << target_function_name << "\n" 
+             << "\t0;JMP\n";
+    
+    // Inject the return label.
+    _asm_out << "(" << return_label << ")\n";
 }
 
 void AsmMapper::write_return(const std::string& command, const std::string& function_name) {
     _asm_out << "// " << command << "\n";
 
+    // Save R13 = LCL (ie. int frame = LCL address).
+    _asm_out << "\t@LCL // frame = LCL\n"
+             << "\tD = M\n"
+             << "\t@R13\n"
+             << "\tM = D\n";
+
+    // Set R14 = R13 - 5 (ie. int ret = *frame - 5).
+    push_to_stack("R13", false);
+    push_to_stack(5, true);
+    write_arithmetic("sub");
+    pop_from_stack();
+
+    _asm_out << "\t@R14 // ret = *(frame - 5)\n"
+             << "\tA = D\n"
+             << "\tM = D\n";
+             
+    // Set ARG = pop_from_stack(). This is what places the return value to where
+    // the caller expects it. From their point of view, they 'traded' what they 
+    // put as function arguments before the call into the return value after the
+    // call.
+    pop_from_stack();        // We expect the top of the stack to contain the return value.
+    _asm_out << "\t@ARG\n"
+             << "\tA = M\n"
+             << "\tM = D\n"       // Wrote to return value to *ARG.
+             << "\tD = A + 1\n";  // D = ARG + 1. We want SP = D in the next lines.
+    
+    // Set SP = ARG + 1, which is right after where the caller sees the return
+    // value.
+    _asm_out << "\t@SP\n"
+             << "\tM = D\n";
+    
+    // Restore THAT, THIS, ARG, LCL.
+    // TODO: lots of duplication.
+    _asm_out << "\t// Restoring THAT, THIS, ARG, LCL.\n";
+    _asm_out << "\t@R13\n"       // R13 contains the memory address of where the LCL segment is.
+             << "\tA = M - 1\n"  // Now M == RAM[frame - 1], so M contains the memory address of the THAT segment.
+             << "\tD = M\n"      // D contains what's stored at LCL - 1, ie. THAT's previous address.
+             << "\t@THAT\n"
+             << "\tM = D\n";     // THAT has the memory address stored at LCL - 1.
+    _asm_out << "\t@R13\n"
+             << "\tA = M - 1\n"
+             << "\tA = A - 1\n"  // Now M == RAM[frame - 2], so M contains the memory address of the THIS segment.
+             << "\tD = M\n"      // D contains what's stored at LCL - 2, ie. THAT's previous address.
+             << "\t@THIS\n"
+             << "\tM = D\n";     // THIS has the memory address stored at LCL - 1.
+    _asm_out << "\t@R13\n"
+             << "\tA = M - 1\n"
+             << "\tA = A - 1\n"
+             << "\tA = A - 1\n"
+             << "\tD = M\n"      // D contains what's stored at LCL - 3, ie. ARG's previous address.
+             << "\t@ARG\n"
+             << "\tM = D\n";     // ARG has the memory address stored at LCL - 1.
+    _asm_out << "\t@R13\n"
+             << "\tA = M - 1\n"
+             << "\tA = A - 1\n"
+             << "\tA = A - 1\n"
+             << "\tA = A - 1\n"
+             << "\tD = M\n"      // D contains what's stored at LCL - 4, ie. LCL's previous address.
+             << "\t@LCL\n"
+             << "\tM = D\n";     // LCL has the memory address stored at LCL - 1.
+    
+    // Jump to the return label.
+    _asm_out << "\t@R14\n"
+             << "\tA = M\n"
+             << "\t0;JMP\n";
 }
 
 void AsmMapper::write_inf_loop() {
