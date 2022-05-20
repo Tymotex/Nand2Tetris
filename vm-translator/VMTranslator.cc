@@ -26,9 +26,15 @@ int main(int argc, char* argv[]) {
     else if (argc > 3) std::cerr << "Too many arguments.\n";
 
     std::string input_file_path = argv[1];
-    std::string output_dir = get_directory_of_file(input_file_path) + (input_file_path.back() == '/' ? "" : "/");
+    // std::string output_file_path = output_dir + basename + ".asm";
     std::string basename = get_basename(input_file_path);
-    std::string output_file_path = output_dir + basename + ".asm";
+    std::string output_file_path;
+
+    if (std::filesystem::is_directory(input_file_path)) {
+        output_file_path = input_file_path + (input_file_path.back() == '/' ? "" : "/") + basename + ".asm";
+    } else {
+        output_file_path = get_directory_of_file(input_file_path) + basename + ".asm";
+    }
 
     AsmMapper code_mapper(output_file_path, basename);
 
@@ -62,7 +68,7 @@ void translate_vm_file_to_asm_file(AsmMapper& code_mapper, std::string& path) {
     std::cout << path << "  ->  " << translation_unit_name << "\n";
     code_mapper.start_new_translation_unit(translation_unit_name);
 
-    // code_mapper.write_bootstrap_init();
+    code_mapper.write_bootstrap_init();
     while (parser.has_more_lines()) {
         parser.advance();
         switch (parser.instruction_type()) {

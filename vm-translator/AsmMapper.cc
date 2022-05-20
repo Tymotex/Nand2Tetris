@@ -170,9 +170,16 @@ void AsmMapper::write_push(const std::string& command,
     _asm_out << "// " << command << "\n";
 
     if (_predef_segment_base_addresses.find(segment) != _predef_segment_base_addresses.end()) {
-        const int segment_base_addr = _predef_segment_base_addresses[segment];
-        _asm_out << "\t@" << segment_base_addr + index << "\n"
-                 << "\tD = M\n";
+        if (segment == "static") {
+            // Symbol names get resolved to a memory address in the static segment.
+            const std::string symbol_name = _trans_unit_name + "_" + std::to_string(index);
+            _asm_out << "\t@" << symbol_name << "\n"
+                     << "\tD = M\n";
+        } else {
+            const int segment_base_addr = _predef_segment_base_addresses[segment];
+            _asm_out << "\t@" << segment_base_addr + index << "\n"
+                     << "\tD = M\n";
+        }
         push_to_stack();
     } else if (_init_segment_addr_registers.find(segment) != _init_segment_addr_registers.end()) {
         const std::string segment_register = _init_segment_addr_registers[segment];
@@ -221,11 +228,19 @@ void AsmMapper::write_pop(const std::string& command,
         const int& index) {
     _asm_out << "// " << command << "\n";
     if (_predef_segment_base_addresses.find(segment) != _predef_segment_base_addresses.end()) {
-        const int segment_base_addr = _predef_segment_base_addresses[segment];
-        _asm_out << "\t@" << segment_base_addr + index << "\n"
-                 << "\tD = A\n"   
-                 << "\t@R13\n"    
-                 << "\tM = D\n";
+        if (segment == "static") {
+            const std::string symbol_name = _trans_unit_name + "_" + std::to_string(index);
+            _asm_out << "\t@" << symbol_name << "\n"
+                     << "\tD = A\n"
+                     << "\t@R13\n"    
+                     << "\tM = D\n";
+        } else {
+            const int segment_base_addr = _predef_segment_base_addresses[segment];
+            _asm_out << "\t@" << segment_base_addr + index << "\n"
+                     << "\tD = A\n"   
+                     << "\t@R13\n"    
+                     << "\tM = D\n";
+        }
         pop_from_stack();
         _asm_out << "\t@R13\n"
                  << "\tA = M\n"
@@ -336,26 +351,24 @@ void AsmMapper::write_return(const std::string& command, const std::string& func
     _asm_out << "\t@LCL // frame = LCL\n"
              << "\tD = M\n"
              << "\t@R13\n"
-             << "\tM = D\n";
+             << "\tM = D\n";  // R13 conttains the address of the local segment.
 
     // Set R14 = R13 - 5 (ie. int ret = *(frame - 5)).
-    _asm_out << "\t@R13 // R14 = *(frame - 5)\n"
-             << "\tD = M\n"
-             << "\t@5\n"
-             << "\tD = D - A\n"  // frame - 5.
+    _asm_out << "\t@5 // R14 = *(frame - 5)\n"
+             << "\tD = D - A\n"  // D contains frame - 5.
              << "\tA = D\n"      
-             << "\tD = M\n";     // *(frame - 5)
-    _asm_out << "\t@R14\n"
-             << "\tM = D\n";
+             << "\tD = M\n";     // D contains *(frame - 5)
+    _asm_out << "\t@R14 // Saving return address.\n"
+             << "\tM = D\n";     // R14 contains *(frame - 5), ie. the return address.
              
     // Set ARG = pop_from_stack(). This is what places the return value to where
     // the caller expects it. From their point of view, they 'traded' what they 
     // put as function arguments before the call into the return value after the
     // call.
-    pop_from_stack();        // We expect the top of the stack to contain the return value.
-    _asm_out << "\t@ARG\n"
+    pop_from_stack();             // We expect the top of the stack to contain the return value.
+    _asm_out << "\t@ARG\n"        
              << "\tA = M\n"
-             << "\tM = D\n"       // Wrote to return value to *ARG.
+             << "\tM = D\n"       // Wrote the return value to *ARG.
              << "\tD = A + 1\n";  // D = ARG + 1. We want SP = D in the next lines.
     
     // Set SP = ARG + 1, which is right after where the caller sees the return
@@ -365,7 +378,7 @@ void AsmMapper::write_return(const std::string& command, const std::string& func
     
     // Restore THAT, THIS, ARG, LCL.
     // TODO: lots of duplication.
-    _asm_out << "\t// Restoring THAT, THIS, ARG, LCL.\n";
+    _asm_out << "// Restoring THAT, THIS, ARG, LCL.\n";
     _asm_out << "\t@R13\n"       // R13 contains the memory address of where the LCL segment is.
              << "\tA = M - 1\n"  // Now M == RAM[frame - 1], so M contains the memory address of the THAT segment.
              << "\tD = M\n"      // D contains what's stored at LCL - 1, ie. THAT's previous address.
@@ -389,9 +402,9 @@ void AsmMapper::write_return(const std::string& command, const std::string& func
              << "\tA = A - 1\n"
              << "\tA = A - 1\n"
              << "\tA = A - 1\n"
-             << "\tD = M\n"      // D contains what's stored at LCL - 4, ie. LCL's previous address.
+             << "\tD = M\n"      // D contains what's stored at LCL - 4, ie. the caller's LCL address.
              << "\t@LCL\n"
-             << "\tM = D\n";     // LCL has the memory address stored at LCL - 1.
+             << "\tM = D\n";     // LCL has the memory address stored at LCL - 4.
     
     // Jump to the return label.
     _asm_out << "\t@R14\n"
@@ -409,10 +422,10 @@ void AsmMapper::write_inf_loop() {
 
 void AsmMapper::write_bootstrap_init() {
     _asm_out << "// ===== Boostrap Start =====\n"
-             << "@256  // Initialise stack pointer to base of stack.\n"
+             << "@261  // Initialise stack pointer to base of stack.\n"
              << "D = A\n"
              << "@SP\n"
-             << "M = D // Done initialising stack pointer.\n"
+             << "M = D\n"
              << "// ===== Boostrap End =====\n";
 }
 
