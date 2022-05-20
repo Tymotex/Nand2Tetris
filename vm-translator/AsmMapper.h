@@ -21,8 +21,7 @@ public:
      * Opens a new write `ofstream` for a new .vm input file. Closes the current
      * `ofstream`.
      */
-    void start_new_translation_unit(const std::string& asm_output_file_path,
-        const std::string& translation_unit_name);
+    void start_new_translation_unit(const std::string& translation_unit_name);
 
     /**
      * Writes the corresponding Hack assembly code for the given command into

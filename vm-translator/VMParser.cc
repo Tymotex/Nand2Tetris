@@ -23,10 +23,11 @@ std::smatch VMParser::_match_results           = std::smatch();
 constexpr std::string_view EMPTY_ARG1 = ""; 
 constexpr int EMPTY_ARG2 = -1;
 
-VMParser::VMParser(const std::string& vm_source_file_path) 
+VMParser::VMParser(const std::string& vm_source_file_path, const bool& debug_mode) 
     : _vm_in(std::ifstream(vm_source_file_path)),
       _curr_line(0),
-      _return_counter(0) {
+      _return_counter(0),
+      _debug_mode(debug_mode) {
 }
 
 bool VMParser::has_more_lines() {
@@ -42,7 +43,7 @@ void VMParser::advance() {
     }
     ++_curr_line;
     if (!parse()) advance();
-    else show_instruction_debug_info();
+    else if (_debug_mode) show_instruction_debug_info();
 }
 
 VMOperationType VMParser::instruction_type() {
@@ -171,7 +172,7 @@ bool VMParser::parse() {
             return false;
         }
         _arg1 = _match_results[1];
-        _arg1 = stoi(_match_results[2]);
+        _arg2 = stoi(_match_results[2]);
         ++_return_counter;
         _instruction_type = VMOperationType::C_CALL;
     } else if (instruction == "return") {

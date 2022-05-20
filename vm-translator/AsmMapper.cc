@@ -37,18 +37,13 @@ std::unordered_map<std::string, std::string> AsmMapper::_comparison_op = {
     {"lt", "JLT"}
 };
 
-AsmMapper::AsmMapper(const std::string& asm_output_file_path, 
-        const std::string& translation_unit_name) {
-    start_new_translation_unit(asm_output_file_path, translation_unit_name);
+AsmMapper::AsmMapper(const std::string& asm_output_file_path, const std::string& translation_unit_name)
+        : _asm_out(std::ofstream(asm_output_file_path)) {
+    start_new_translation_unit(translation_unit_name);
 }
 
-void AsmMapper::start_new_translation_unit(const std::string& asm_output_file_path,
-        const std::string& translation_unit_name) {
-    // Close previous output file stream.
-    if (_asm_out.is_open()) _asm_out.close();
-
+void AsmMapper::start_new_translation_unit(const std::string& translation_unit_name) {
     // Initialise new .asm output stream.
-    _asm_out = std::ofstream(asm_output_file_path);
     _trans_unit_name = translation_unit_name;
     _label_count = 0;
 }
@@ -310,13 +305,12 @@ void AsmMapper::write_call(const std::string& command, const std::string& target
     // Point ARG to the base address where the callee can expect its `num_args`
     // arguments.
     // Ie. we set ARG = (SP - 5) - num_args.
-    push_to_stack("SP", false);
-    push_to_stack(5, true);
-    write_arithmetic("sub");
-    push_to_stack(num_args, true);
-    write_arithmetic("sub");
-
-    pop_from_stack();
+    _asm_out << "\t@SP\n"
+             << "\tD = M\n"
+             << "\t@5\n"
+             << "\tD = D - A\n"  // D contains SP - 5.
+             << "\t@" << num_args << "\n"
+             << "\tD = D - A\n"; // D contains (SP - 5) - num_args
     _asm_out << "\t@ARG\n"
              << "\tM = D\n";
 
@@ -344,14 +338,14 @@ void AsmMapper::write_return(const std::string& command, const std::string& func
              << "\t@R13\n"
              << "\tM = D\n";
 
-    // Set R14 = R13 - 5 (ie. int ret = *frame - 5).
-    push_to_stack("R13", false);
-    push_to_stack(5, true);
-    write_arithmetic("sub");
-    pop_from_stack();
-
-    _asm_out << "\t@R14 // ret = *(frame - 5)\n"
-             << "\tA = D\n"
+    // Set R14 = R13 - 5 (ie. int ret = *(frame - 5)).
+    _asm_out << "\t@R13 // R14 = *(frame - 5)\n"
+             << "\tD = M\n"
+             << "\t@5\n"
+             << "\tD = D - A\n"  // frame - 5.
+             << "\tA = D\n"      
+             << "\tD = M\n";     // *(frame - 5)
+    _asm_out << "\t@R14\n"
              << "\tM = D\n";
              
     // Set ARG = pop_from_stack(). This is what places the return value to where

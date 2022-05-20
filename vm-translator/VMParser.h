@@ -21,7 +21,7 @@ enum class VMOperationType {
 
 class VMParser {
 public:
-    explicit VMParser(const std::string& vm_source_file_path);
+    explicit VMParser(const std::string& vm_source_file_path, const bool& debug_mode);
 
     /**
      * Determines if there exists more lines of the input .vm file to parse.
@@ -76,6 +76,9 @@ private:
 
     // Stream of source VM instructions to map to Hack assembly. 
     std::ifstream _vm_in;
+
+    // Whether or not to show additional parsing debug information.
+    bool _debug_mode;
 
     // Cursor variables. These will always progress forward.
     std::string _curr_instruction;

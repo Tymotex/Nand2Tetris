@@ -8,11 +8,11 @@
 // Reads in the VM instructions in the given .vm file and produces an .asm file
 // containing all the translated Hack assembly instructions.
 // Assumes that the given .vm file exists.
-void translate_vm_file_to_asm_file(const std::string& path, const std::string& output_dir);
+void translate_vm_file_to_asm_file(AsmMapper& code_mapper, std::string& path);
 
 // Extracts the basename from a given path.
 // Eg. Given "/home/linus/hello.txt", `get_basename` returns "hello".
-std::string get_basename(const std::string& path);
+std::string get_basename(std::string& path);
 
 // Determines whether the given file has the .vm file extension.
 bool is_vm_file(const std::string& path);
@@ -26,45 +26,43 @@ int main(int argc, char* argv[]) {
     else if (argc > 3) std::cerr << "Too many arguments.\n";
 
     std::string input_file_path = argv[1];
+    std::string output_dir = get_directory_of_file(input_file_path) + (input_file_path.back() == '/' ? "" : "/");
+    std::string basename = get_basename(input_file_path);
+    std::string output_file_path = output_dir + basename + ".asm";
 
-    // For single-file translation, the output directory will be the same 
-    // directory where the source file is. For multi-file translation, an output
-    // directory will be created to store all the translated .asm files.
-    std::string output_dir = get_directory_of_file(input_file_path);
-
+    AsmMapper code_mapper(output_file_path, basename);
 
     // If the given path points to a directory, then process all .vm files found
     // in that directory. Otherwise, process a single file.
     if (std::filesystem::is_directory(input_file_path)) {
-        std::cout << argv[0] << ": Translating all .vm files in the given directory.\n\n";
-
-        // Make output directory for the output .asm files.
-        output_dir += get_basename(input_file_path) + "_TRANSLATED/";
-        std::filesystem::create_directory(output_dir);
+        std::cout << argv[0] << ": Translating and concatenating all .vm files in the given directory.\n";
 
         // Translate each .vm file in the given directory.
-        for (const std::filesystem::directory_entry& each_file : std::filesystem::directory_iterator(input_file_path)) {
-            std::cout << argv[0] << ": Processing " << each_file.path() << "\n";
-            if (is_vm_file(each_file.path()))
-                translate_vm_file_to_asm_file(each_file.path(), output_dir);
+        for (std::filesystem::directory_entry each_file : std::filesystem::directory_iterator(input_file_path)) {
+            if (is_vm_file(each_file.path())) {
+                std::cout << argv[0] << ": Processing " << each_file.path() << "\n";
+                std::string path = each_file.path();
+                translate_vm_file_to_asm_file(code_mapper, path);
+            }
         }
     } else {
         std::cout << argv[0] << ": Translating a single file.\n\n";
-        translate_vm_file_to_asm_file(input_file_path, output_dir);
+        translate_vm_file_to_asm_file(code_mapper, input_file_path);
     }
-
+    code_mapper.write_inf_loop();
+    code_mapper.close();
+    std::cout << "Output path: " << output_file_path << std::endl;
     return 0;
 }
 
-void translate_vm_file_to_asm_file(const std::string& path, const std::string& output_dir) {
-    std::string basename = get_basename(path);
-    std::string output_file_path = output_dir + basename + ".asm";
+void translate_vm_file_to_asm_file(AsmMapper& code_mapper, std::string& path) {
+    VMParser parser(path, false);
 
-    AsmMapper code_mapper(output_file_path, basename);
-    VMParser parser(path);
+    std::string translation_unit_name = get_basename(path);
+    std::cout << path << "  ->  " << translation_unit_name << "\n";
+    code_mapper.start_new_translation_unit(translation_unit_name);
 
     // code_mapper.write_bootstrap_init();
-
     while (parser.has_more_lines()) {
         parser.advance();
         switch (parser.instruction_type()) {
@@ -99,8 +97,6 @@ void translate_vm_file_to_asm_file(const std::string& path, const std::string& o
                 break;
         }
     }
-    code_mapper.write_inf_loop();
-    code_mapper.close();
 }
 
 std::string get_directory_of_file(const std::string& path) {
@@ -113,7 +109,10 @@ std::string get_directory_of_file(const std::string& path) {
     return path.substr(0, last_slash_index + 1);
 }
 
-std::string get_basename(const std::string& path) {
+std::string get_basename(std::string& path) {
+    // Strip trailing '/' otherwise the basename will be empty.
+    if (path.back() == '/') path.pop_back();
+
     // Locate the last instance of / in the given path, if it exists and use
     // that as the starting index to extract the basename.
     int start_index = path.find_last_of("/");
