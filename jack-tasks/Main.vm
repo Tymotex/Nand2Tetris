@@ -1,0 +1,22 @@
+function Main.main 2
+call TaskTracker.new 0
+pop local 1
+call MenuManager.welcome 0
+pop temp 0
+call MenuManager.prompt 0
+pop local 0
+label WHILE_EXP0
+push local 1
+push local 0
+call TaskTracker.process_command 2
+not
+if-goto WHILE_END0
+call MenuManager.prompt 0
+pop local 0
+goto WHILE_EXP0
+label WHILE_END0
+push local 1
+call TaskTracker.dispose 1
+pop temp 0
+push constant 0
+return

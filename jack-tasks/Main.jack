@@ -1,0 +1,17 @@
+class Main {
+    function void main() {
+        var String command;
+        var TaskTracker task_tracker;
+
+        let task_tracker = TaskTracker.new();
+        do MenuManager.welcome();
+
+        let command = MenuManager.prompt();
+        while (task_tracker.process_command(command)) {
+            let command = MenuManager.prompt();
+        }
+
+        do task_tracker.dispose();
+        return;
+    }
+}

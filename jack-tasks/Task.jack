@@ -1,0 +1,38 @@
+class Task {
+    // Fields.
+    field String _task;
+    field int _id;
+    field boolean _completed;
+
+    constructor Task new(String task, int id) {
+        let _task = task;
+        let _id = id;
+        let _completed = false; 
+        return this;
+    }
+
+    method void dispose() {
+        do Memory.dispose(_task);
+        do Memory.dispose(this);
+        return;
+    }
+
+    // Accessors.
+    method String get_task() {
+        return _task;
+    }
+
+    method void update_task(String new_task) {
+        let _task = new_task;
+        return;
+    }
+
+    method boolean is_complete() {
+        return _completed;
+    }
+
+    method void complete() {
+        let _completed = true;
+        return;
+    }
+}

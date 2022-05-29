@@ -1,0 +1,32 @@
+class MenuManager {
+    function void welcome() {
+        do Output.printString("Welcome to the Jack task tracker.");
+        do Output.printChar(String.newLine());
+        do Output.printChar(String.newLine());
+
+        do MenuManager.instructions();
+        do Output.printChar(String.newLine());
+
+        do Output.printString("What do you need to get done today?");
+        do Output.printChar(String.newLine());
+        return;
+    }
+
+    function void instructions() {
+        do Output.printString("INSTRUCTIONS:");
+        do Output.printChar(String.newLine());
+        do Output.printString("add <task>          -  Track a new task.");
+        do Output.printChar(String.newLine());
+        do Output.printString("complete <id>       -  Complete a task.");
+        do Output.printChar(String.newLine());
+        do Output.printString("update <id> <task>  -  Updates a task.");
+        do Output.printChar(String.newLine());
+        do Output.printString("exit                -  Exits.");
+        do Output.printChar(String.newLine());
+        return;
+    }
+
+    function String prompt() {
+        return Keyboard.readLine(" > ");
+    }
+}
