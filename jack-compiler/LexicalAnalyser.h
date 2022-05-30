@@ -3,6 +3,7 @@
 #ifndef LEXICAL_ANALYSER_H
 #define LEXICAL_ANALYSER_H
 #include <string>
+#include <fstream>
 
 enum class TokenType {
     KEYWORD, SYMBOL, IDENTIFIER, INT_CONST, STRING_CONST
@@ -22,14 +23,11 @@ public:
     explicit LexicalAnalyser(const std::string& source_jack_file_path);
 
     /**
-     * Determines whether the opened Jack source stream has any more tokens.
+     * Advances the cursor forward through the Jack source stream and returns
+     * true if it was able to produce a token from the character stream.
+     * Throws `JackSyntaxError` if an invalid token is encountered.
      */
-    bool has_more_tokens();
-
-    /**
-     * Advances the cursor forward through the Jack source stream.
-     */
-    void advance();
+    bool advance();
 
     /**
      * Returns the TokenType of the token that's currently being pointed to by
@@ -69,6 +67,19 @@ public:
     std::string get_str_value();
 
 private:
+    /**
+     * Output stream for all identified tokens. This is mainly for sanity
+     * checking during compiler development.
+     */
+    std::ofstream _token_xml_out;
+};
+
+class JackSyntaxError : public std::exception {
+public:
+    JackSyntaxError(char const* const message) throw();
+    virtual char const* what() const throw();
+private:
+    char const* _message;
 };
 
 #endif

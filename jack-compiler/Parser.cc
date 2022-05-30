@@ -1,12 +1,11 @@
-// TODO: for subroutineCall, see page 276.
-
 #include "LexicalAnalyser.h"
 #include "Parser.h"
 #include <iostream>
 #include <fstream>
+#include <memory>
 
-Parser::Parser(LexicalAnalyser& token_stream, std::ofstream& output_stream)
-    : _token_stream(token_stream) {
+Parser::Parser(std::shared_ptr<LexicalAnalyser> lexical_analyser, std::ofstream& output_stream)
+    : _lexical_analyser(lexical_analyser) {
 }
 
 void Parser::compile_class() {

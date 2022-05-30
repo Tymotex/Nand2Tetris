@@ -61,11 +61,8 @@ void translate_jack_file_to_vm(const std::string& path) {
     std::string output_file_path =
         get_directory_of_file(path) + "/" + get_basename(path) + ".vm";
 
-    LexicalAnalyser token_stream(path);
+    std::shared_ptr<LexicalAnalyser> token_stream(new LexicalAnalyser(path));
     std::ofstream output_stream(output_file_path);
     Parser parser(token_stream, output_stream);
 
-    // while (token_stream.has_more_tokens()) {
-    //     token_stream.advance();
-    // }
 }
