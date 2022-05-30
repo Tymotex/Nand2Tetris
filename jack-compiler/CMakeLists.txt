@@ -1,9 +1,12 @@
 cmake_minimum_required(VERSION 3.14)
 project(JackCompiler)
 
-# ===== Fetch GoogleTest =====
 set(CMAKE_CXX_STANDARD 17)
 
+# Enable GDB debug info.
+add_compile_options(-g)
+
+# ===== Fetch GoogleTest =====
 include(FetchContent)
 FetchContent_Declare(
 	  googletest

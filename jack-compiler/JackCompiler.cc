@@ -29,8 +29,8 @@ int main(int argc, char* argv[]) {
     // If the given path points to a directory, then process all .jack files
     // found in that directory. Otherwise, process a single file.
     if (std::filesystem::is_directory(input_file_path)) {
-        std::cout << Colour::GREEN
-                  << argv[0]
+        std::cout << argv[0]
+                  << Colour::GREEN
                   << ": Translating all .jack files in the given directory.\n"
                   << Colour::RESET;
 
@@ -38,13 +38,18 @@ int main(int argc, char* argv[]) {
         for (std::filesystem::directory_entry each_file : std::filesystem::directory_iterator(input_file_path)) {
             if (is_jack_file(each_file.path())) {
                 std::string path = each_file.path();
-                std::cout << argv[0] << Colour::BLUE << ": Processing " << path << Colour::RESET << "\n";
+                std::cout << argv[0]
+                          << Colour::BLUE
+                          << ": Processing "
+                          << path 
+                          << Colour::RESET
+                          << "\n";
                 translate_jack_file_to_vm(path);
             }
         }
     } else {
-        std::cout << Colour::GREEN
-                  << argv[0]
+        std::cout << argv[0]
+                  << Colour::GREEN
                   << ": Translating a single file.\n\n"
                   << Colour::RESET;
         translate_jack_file_to_vm(input_file_path);
