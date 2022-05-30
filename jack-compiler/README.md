@@ -8,6 +8,6 @@ Grammar:
 - Defines the expected form for constructs like let statements, if-statements, while loops, etc.
 
 TODO:
-- Learn CMake and set up GoogleTest, *properly*.
-- How to package an installer.
-- Possiblity of tweaking the VM translator to produce valid x86 assembly code.
+
+TODO: for the future:
+- Investigate possiblity of tweaking the VM translator to produce valid x86 assembly code.
