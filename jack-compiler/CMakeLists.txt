@@ -15,7 +15,13 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 # ===== Executable =====
+add_subdirectory(utils)
+
 add_executable(JackCompiler JackCompiler.cc LexicalAnalyser.cc Parser.cc)
+
+target_link_libraries(
+    JackCompiler PUBLIC utils
+)
 target_include_directories(
     JackCompiler
     PUBLIC "${PROJECT_BINARY_DIR}"

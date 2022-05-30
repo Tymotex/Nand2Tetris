@@ -2,6 +2,7 @@
 #ifndef PARSER_H
 #define PARSER_H
 
+#include "LexicalAnalyser.h"
 #include <string>
 #include <fstream>
 
@@ -12,8 +13,7 @@ public:
      * file stream. The parser advances through the token stream with 
      * recursive descent.
      */
-    // TODO: replace ifstream with TokenStream.
-    explicit Parser(std::ifstream i, std::ofstream& o);
+    explicit Parser(LexicalAnalyser& token_stream, std::ofstream& o);
 
     /**
      * Compiles a class construct.
@@ -95,6 +95,7 @@ public:
     int compile_expression_list();
 
 private:
+    LexicalAnalyser _token_stream;
 };
 
 #endif
