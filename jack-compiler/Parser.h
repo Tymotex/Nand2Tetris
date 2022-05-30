@@ -12,7 +12,8 @@ public:
      * file stream. The parser advances through the token stream with 
      * recursive descent.
      */
-    explicit Parser(TokenStream i, std::ofstream& o);
+    // TODO: replace ifstream with TokenStream.
+    explicit Parser(std::ifstream i, std::ofstream& o);
 
     /**
      * Compiles a class construct.

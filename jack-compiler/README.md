@@ -9,6 +9,5 @@ Grammar:
 
 TODO:
 - Learn CMake and set up GoogleTest, *properly*.
-
-
-
+- How to package an installer.
+- Possiblity of tweaking the VM translator to produce valid x86 assembly code.
