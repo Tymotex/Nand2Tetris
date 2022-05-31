@@ -64,7 +64,9 @@ currently pointing at. Skip all whitespace.
 
 TODO: for the future:
 - Make it optional to output *T.xml
+- Write up an explanation of how you implemented the compiler and what data structures you used and how your tokenisation and parsing algorithms work.
 * There should be logic preventing multiple classes per file and nested classes.
 * Disallow nested subroutines.
+* Disallow integer constant overflow/underflow.
 - 
 * Investigate possiblity of tweaking the VM translator to produce valid x86 assembly code.

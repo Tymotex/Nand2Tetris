@@ -1,4 +1,5 @@
 #include "LexicalAnalyser.h"
+#include "utils/XMLUtilities.h"
 #include <string>
 #include <iostream>
 #include <unordered_set>
@@ -24,7 +25,7 @@ std::unordered_set<char> LexicalAnalyser::symbol_lexicon = {
 };
 
 // TODO: why does $ not work in C++ regex? How can I get it working?
-std::regex LexicalAnalyser::valid_identifier_pattern = std::regex(R"(^[a-zA-Z]\w+$)");
+std::regex LexicalAnalyser::valid_identifier_pattern = std::regex(R"(^[a-zA-Z]\w*$)");
 
 LexicalAnalyser::LexicalAnalyser(const std::string& source_jack_file_path,
     const std::string& token_xml_output_path)
@@ -67,13 +68,10 @@ bool LexicalAnalyser::try_advance() {
 
     if (first_char == '"') {
         try_read_string_literal();
-        _curr_token_type = TokenType::STRING_CONST;
     } else if (std::isdigit(first_char)) {
+        // Take one step back to read in the full token.
+        _jack_in.seekg(-1, std::ios_base::cur);
         try_read_int_literal();
-        _curr_token_type = TokenType::INT_CONST;
-    } else if (symbol_lexicon.find(first_char) != symbol_lexicon.end()) {
-        _curr_token = std::string{first_char};
-        _curr_token_type = TokenType::SYMBOL;
     } else if (first_char == '/') {
         char second_char = _jack_in.get();
         if (second_char == '/') {
@@ -81,8 +79,14 @@ bool LexicalAnalyser::try_advance() {
         } else if (second_char == '*') {
             try_advance_past_comment(true);
         } else {
-            throw JackSyntaxError("Invalid comment.");
+            // It's necessary to disambiguate between comments and the division
+            // operator, /.
+            _curr_token = std::string{first_char};
+            _curr_token_type = TokenType::SYMBOL;
         }
+    } else if (symbol_lexicon.find(first_char) != symbol_lexicon.end()) {
+        _curr_token = std::string{first_char};
+        _curr_token_type = TokenType::SYMBOL;
     } else {
         // Take one step back to read in the full token.
         _jack_in.seekg(-1, std::ios_base::cur);
@@ -92,9 +96,8 @@ bool LexicalAnalyser::try_advance() {
     }
 
     // Write the extracted token to the debug info XML output stream.
-    _token_xml_out << "<" << get_token_type() << "> "
-                   << _curr_token
-                   << " </" << get_token_type() << ">\n";
+    if (_curr_token_type != TokenType::COMMENT)
+        _token_xml_out << XMLUtilities::form_xml(get_token_type(), _curr_token, true);
 
     return true;
 }
@@ -142,18 +145,65 @@ void LexicalAnalyser::try_read_string_literal() {
         token.push_back(c);
     }
     _curr_token = token;
+    _curr_token_type = TokenType::STRING_CONST;
 }
 
+// We read int literals based on the following rules:
+// - If it's only 1 digit long, then it must be in range 0-9.
+//   else if it is multiple digits long, then the leading digit must be non-zero.
+//   Eg. 0 and 10 are valid numbers, but 01 and 00 are not.
+// - We consider any non-numeric character as a boundary that signals the
+//   compiler to stop reading.
 void LexicalAnalyser::try_read_int_literal() {
+    std::string token = "";
 
-    // TODO: implement me.
+    // Scan digits into token until a non-numeric character is encountered.
+    char c;
+    while (std::isdigit(c = _jack_in.get())) {
+        if (_jack_in.eof()) throw JackSyntaxError("Unexpected EOF while reading integer literal.");
+        token.push_back(c);
+    }
+
+    // Seek back one character.
+    _jack_in.seekg(-1, std::ios_base::cur);
+
+    _curr_token = token;
+    _curr_token_type = TokenType::INT_CONST;
 }
 
 bool LexicalAnalyser::try_advance_past_comment(const bool& multiline) {
-    // TODO: implement me.
-
+    std::string token = "";
+    if (!multiline) {
+        // For inline comments, we advance the cursor until the next newline
+        // character is encountered. There are no conditions where an inline
+        // comment is invalid.
+        char c;
+        while ((c = _jack_in.get()) != '\n' || _jack_in.eof())
+            token.push_back(c);
+    } else {
+        // For multi-line comments, we advance the cursor until the consecutive
+        // characters, '*/', are encountered. If we reach EOF before then, then
+        // the comment is invalid.
+        bool comment_terminated = false;
+        while (!_jack_in.eof()) {
+            char c = _jack_in.get();
+            if (c == '*') {
+                if (_jack_in.eof())
+                    throw JackSyntaxError("Unexpected EOF while reading "
+                                          "multi-line comment.");
+                char c = _jack_in.get();
+                if (c == '/') {
+                    comment_terminated = true;
+                    break;
+                }
+            }
+            token.push_back(c);
+        }
+        if (!comment_terminated) return false;
+    }
     _curr_token_type = TokenType::COMMENT;
-    return false;
+    _curr_token = token;
+    return true;
 }
 
 bool LexicalAnalyser::try_read_keyword() {
@@ -164,6 +214,7 @@ bool LexicalAnalyser::try_read_keyword() {
     token.push_back(c);
 
     // TODO: this should not be hard-coded... The 11 is meant to be strlen("constructor")
+    // TODO: replace this with your own basic implementation of a trie structure.
     while (num_read <= 11) {
         if (_jack_in.eof())
             throw JackSyntaxError("Unexpected EOF while reading Jack keyword.");
@@ -256,11 +307,13 @@ std::string LexicalAnalyser::get_token_type() {
     else if (_curr_token_type == TokenType::SYMBOL) return "symbol";
     else if (_curr_token_type == TokenType::IDENTIFIER) return "identifier";
     else if (_curr_token_type == TokenType::INT_CONST) return "integerConstant";
-    else if (_curr_token_type == TokenType::STRING_CONST) return "stringContant";
+    else if (_curr_token_type == TokenType::STRING_CONST) return "stringConstant";
     else if (_curr_token_type == TokenType::COMMENT) return "comment";
 
     return "undefined";
 }
+
+
 
 JackSyntaxError::JackSyntaxError(char const* const message) throw()
     : _message(message) {
