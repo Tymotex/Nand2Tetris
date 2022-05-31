@@ -71,19 +71,22 @@ void translate_jack_file_to_vm(const std::string& path) {
     std::ofstream output_stream(output_file_path);
     Parser parser(lexical_analyser, output_stream);
     
-    // TODO: DEBUG INFO. Leave commented.
-    // while (lexical_analyser->try_advance()) {
-    //     show_tokeniser_debug_info(lexical_analyser);
+    while (lexical_analyser->try_advance()) {
+        // show_tokeniser_debug_info(lexical_analyser);
+    }
+    lexical_analyser->reset();
+
+    while (lexical_analyser->try_advance()) {
+        show_tokeniser_debug_info(lexical_analyser);
+    }
+    // Advance the token stream until the `class` token is reached.
+    // while (lexical_analyser->try_advance() &&
+    //        lexical_analyser->token_type() != TokenType::KEYWORD &&
+    //        lexical_analyser->keyword() != Keyword::CLASS) {
     // }
 
-    // Advance the token stream until the `class` token is reached.
-    while (lexical_analyser->try_advance() &&
-           lexical_analyser->token_type() != TokenType::KEYWORD &&
-           lexical_analyser->keyword() != Keyword::CLASS) {
-    }
-
     // Kick off the recursive descent parsing process.
-    parser.compile_class();
+    // parser.compile_class();
 }
 
 void show_tokeniser_debug_info(std::shared_ptr<LexicalAnalyser> lexical_analyser) {

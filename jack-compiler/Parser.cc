@@ -11,5 +11,3 @@ Parser::Parser(std::shared_ptr<LexicalAnalyser> lexical_analyser, std::ofstream&
 void Parser::compile_class() {
 }
 
-void Parser::compile_member_variable_declaration() {
-}

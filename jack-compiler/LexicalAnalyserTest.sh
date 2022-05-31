@@ -10,15 +10,21 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
+echo "Running Jack Compiler on all test files..."
+for each_project in $(find test-files -maxdepth 1 -mindepth 1); do
+    ./build/JackCompiler "$each_project"
+done
+
 test_round=0
 for each_file in $(find test-files | grep "\.jack$"); do
+    echo "═════ Test $test_round ═════"
+
     file_directory=$(dirname $(readlink -f $each_file))
     file_basename=$(basename $each_file | cut -d. -f1) 
 
     output_file=${file_directory}/${file_basename}T.xml
     expected_file=${file_directory}/${file_basename}T.expected.xml
 
-    echo "═════ Test $test_round ═════"
     echo "Out: $output_file"
     echo "Exp: $expected_file"
 

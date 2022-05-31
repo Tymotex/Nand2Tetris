@@ -1,5 +1,5 @@
 #include "LexicalAnalyser.h"
-#include "utils/XMLUtilities.h"
+#include "utils/XMLOutput.h"
 #include <string>
 #include <iostream>
 #include <unordered_set>
@@ -24,23 +24,23 @@ std::unordered_set<char> LexicalAnalyser::symbol_lexicon = {
     '<', '>', '=', '~'
 };
 
-// TODO: why does $ not work in C++ regex? How can I get it working?
 std::regex LexicalAnalyser::valid_identifier_pattern = std::regex(R"(^[a-zA-Z]\w*$)");
 
 LexicalAnalyser::LexicalAnalyser(const std::string& source_jack_file_path,
     const std::string& token_xml_output_path)
     : _jack_in(std::ifstream(source_jack_file_path)),
-      _token_xml_out(std::ofstream(token_xml_output_path)),
+      _token_xml_out(std::make_unique<XMLOutput>(token_xml_output_path, false)),
+      _token_xml_output_path(token_xml_output_path),
       _curr_token(""),
       _curr_token_type(TokenType::UNDEFINED),
       _curr_keyword(Keyword::UNDEFINED) {
     // Start the XML token stream.
-    _token_xml_out << "<tokens>\n";
+    _token_xml_out->open_xml("tokens");
 }
 
 LexicalAnalyser::~LexicalAnalyser() {
-    _token_xml_out << "</tokens>\n";
-    _token_xml_out.close();
+    _token_xml_out->close_xml();
+    _token_xml_out->close();
 }
 
 /**
@@ -97,7 +97,7 @@ bool LexicalAnalyser::try_advance() {
 
     // Write the extracted token to the debug info XML output stream.
     if (_curr_token_type != TokenType::COMMENT)
-        _token_xml_out << XMLUtilities::form_xml(get_token_type(), _curr_token, true);
+        _token_xml_out->form_xml(get_token_type(), _curr_token);
 
     return true;
 }
@@ -124,6 +124,18 @@ int LexicalAnalyser::get_int_value() {
 
 std::string LexicalAnalyser::get_str_value() {
     return _curr_token;
+}
+
+void LexicalAnalyser::reset() {
+    _jack_in.clear();
+    _jack_in.seekg(0);
+    _token_xml_out->close_xml();
+    _token_xml_out->close();
+    _token_xml_out = std::make_unique<XMLOutput>(_token_xml_output_path, false);
+    _token_xml_out->open_xml("tokens");
+    _curr_token = "";
+    _curr_token_type = TokenType::UNDEFINED;
+    _curr_keyword = Keyword::UNDEFINED;
 }
 
 void LexicalAnalyser::try_advance_past_whitespace() {

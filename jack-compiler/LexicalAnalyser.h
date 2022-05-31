@@ -2,12 +2,15 @@
 // to a token stream that's later used for syntactic analysis.
 #ifndef LEXICAL_ANALYSER_H
 #define LEXICAL_ANALYSER_H
+
+#include "utils/XMLOutput.h"
 #include <string>
 #include <fstream>
 #include <unordered_map>
 #include <unordered_set>
 #include <regex>
 #include <tuple>
+#include <memory>
 
 enum class TokenType {
     KEYWORD, SYMBOL, IDENTIFIER, INT_CONST, STRING_CONST, COMMENT, UNDEFINED
@@ -86,6 +89,11 @@ public:
      */
     std::string get_str_value();
 
+    /**
+     * Restarts the lexical analysis, seeking back to the start of the input
+     * stream.
+     */
+    void reset();
 private:
     /**
      * Jack character input stream.
@@ -96,7 +104,8 @@ private:
      * Output stream for all identified tokens. This is mainly for sanity
      * checking during compiler development.
      */
-    std::ofstream _token_xml_out;
+    std::unique_ptr<XMLOutput> _token_xml_out;
+    std::string _token_xml_output_path;
 
     // Cursor helper variables.
     std::string _curr_token;
