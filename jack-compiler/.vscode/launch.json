@@ -6,7 +6,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/JackCompiler",
-            "args": ["."],
+            "args": ["${workspaceFolder}/test-files/HelloWorld"],
             "stopAtEntry": true,
             "cwd": "${workspaceFolder}",
             "environment": [],

@@ -59,10 +59,39 @@ int main(int argc, char* argv[]) {
 
 void translate_jack_file_to_vm(const std::string& path) {
     std::string output_file_path =
-        get_directory_of_file(path) + "/" + get_basename(path) + ".vm";
+        get_directory_of_file(path) + "/" + get_basename(path) + ".xml";
+    std::string token_xml_output_path =
+        get_directory_of_file(path) + "/" + get_basename(path) + "T.xml";
 
-    std::shared_ptr<LexicalAnalyser> token_stream(new LexicalAnalyser(path));
+    std::shared_ptr<LexicalAnalyser> lexical_analyser =
+        std::make_shared<LexicalAnalyser>(path, token_xml_output_path);
     std::ofstream output_stream(output_file_path);
-    Parser parser(token_stream, output_stream);
-
+    Parser parser(lexical_analyser, output_stream);
+    
+    while (lexical_analyser->try_advance()) {
+        std::cout << Colour::BLUE;
+        switch (lexical_analyser->token_type()) {
+            case TokenType::KEYWORD:
+                std::cout << "Keyword:    " << lexical_analyser->get_str_value() << "\n";
+                break;
+            case TokenType::IDENTIFIER:
+                std::cout << "Identifier: " << lexical_analyser->identifier() << "\n";
+                break;
+            case TokenType::SYMBOL:
+                std::cout << "Symbol:     " << lexical_analyser->symbol() << "\n";
+                break;
+            case TokenType::INT_CONST:
+                std::cout << "Int const:  " << lexical_analyser->get_int_value() << "\n";
+                break;
+            case TokenType::STRING_CONST:
+                std::cout << "Str const:  " << lexical_analyser->get_str_value() << "\n";
+                break;
+            case TokenType::COMMENT:
+                std::cout << "Comment:    " << lexical_analyser->get_str_value() << "\n";
+                break;
+            default:
+                break;
+        }
+        std::cout << Colour::RESET;
+    }
 }

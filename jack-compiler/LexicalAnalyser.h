@@ -4,30 +4,50 @@
 #define LEXICAL_ANALYSER_H
 #include <string>
 #include <fstream>
+#include <unordered_map>
+#include <unordered_set>
+#include <regex>
+#include <tuple>
 
 enum class TokenType {
-    KEYWORD, SYMBOL, IDENTIFIER, INT_CONST, STRING_CONST
+    KEYWORD, SYMBOL, IDENTIFIER, INT_CONST, STRING_CONST, COMMENT, UNDEFINED
 };
 
 enum class Keyword {
     CLASS, METHOD, FUNCTION, CONSTRUCTOR, INT, BOOLEAN, CHAR, VOID, VAR, STATIC,
-    FIELD, LET, DO, IF, ELSE, WHILE, RETURN, TRUE, FALSE, NULL_KEYWORD, THIS
+    FIELD, LET, DO, IF, ELSE, WHILE, RETURN, TRUE, FALSE, NULL_KEYWORD, THIS,
+    UNDEFINED
 };
 
 class LexicalAnalyser {
 public:
+    // Contains all the keywords defined by the Jack language standard.
+    // Eg. type: {int, char, boolean},
+    //     subroutine_declaration: {function, method, constructor},
+    //     ... and so on
+    static std::unordered_set<std::string> keyword_lexicon;
+
+    // Contains all the single-character symbols defined by the Jack language
+    // standard. For example: ,.;(){}*|&~<>= and so on.
+    static std::unordered_set<char> symbol_lexicon;
+
+    static std::regex valid_identifier_pattern;
+
     /**
      * Opens an input file stream from the given Jack source. Prepares it for
      * tokenisation.
      */
-    explicit LexicalAnalyser(const std::string& source_jack_file_path);
+    explicit LexicalAnalyser(const std::string& source_jack_file_path,
+        const std::string& token_xml_output_path);
+
+    ~LexicalAnalyser();
 
     /**
      * Advances the cursor forward through the Jack source stream and returns
      * true if it was able to produce a token from the character stream.
      * Throws `JackSyntaxError` if an invalid token is encountered.
      */
-    bool advance();
+    bool try_advance();
 
     /**
      * Returns the TokenType of the token that's currently being pointed to by
@@ -68,10 +88,67 @@ public:
 
 private:
     /**
+     * Jack character input stream.
+     */
+    std::ifstream _jack_in;
+
+    /**
      * Output stream for all identified tokens. This is mainly for sanity
      * checking during compiler development.
      */
     std::ofstream _token_xml_out;
+
+    // Cursor helper variables.
+    std::string _curr_token;
+    TokenType _curr_token_type;
+    Keyword _curr_keyword;
+
+    /**
+     * Advances the cursor until any non-whitespace character is encountered.
+     */
+    void try_advance_past_whitespace();
+
+    /**
+     * Attempts to read a string literal, stopping until a " is encountered,
+     * before a newline character is encountered.
+     * Reads forward from where the cursor's current position and advances it
+     * forward as a side effect.
+     */
+    void try_read_string_literal();
+
+    /**
+     * Attempts to read a int literal. 
+     * Reads forward from where the cursor's current position and advances it
+     * forward as a side effect.
+     */
+    // TODO: think of all the different cases for when to 'stop' reading a number.
+    void try_read_int_literal();
+
+    /**
+     * Attempts to advance just beyond the end of the inline or multi-line
+     * comment. Returns whether or not a valid comment was advanced past.
+     */
+    bool try_advance_past_comment(const bool& multiline);
+
+    /**
+     * Attempts to read a Jack keyword, returning whether the attempt succeeded.
+     * Reads forward from where the cursor's current position and advances it
+     * forward as a side effect.
+     */
+    bool try_read_keyword();
+
+    /**
+     * Attempts to read an identifier. Throws JackSyntaxError if the identifier
+     * violates naming rules.
+     * Reads forward from where the cursor's current position and advances it
+     * forward as a side effect.
+     */
+    void try_read_identifier();
+
+
+    Keyword get_keyword(const std::string& keyword);
+
+    std::string get_token_type();
 };
 
 class JackSyntaxError : public std::exception {

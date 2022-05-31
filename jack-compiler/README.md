@@ -63,6 +63,7 @@ currently pointing at. Skip all whitespace.
 - 
 
 TODO: for the future:
+- Make it optional to output *T.xml
 * There should be logic preventing multiple classes per file and nested classes.
 * Disallow nested subroutines.
 - 
