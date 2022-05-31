@@ -14,7 +14,7 @@ public:
      * file stream. The parser advances through the token stream with 
      * recursive descent.
      */
-    explicit Parser(std::shared_ptr<LexicalAnalyser> lexical_analyser, std::ofstream& o);
+    explicit Parser(std::shared_ptr<LexicalAnalyser> lexical_analyser, const std::string& o);
 
     /**
      * Compiles a class construct.
@@ -97,7 +97,16 @@ public:
     int compile_expression_list();
 
 private:
+    /**
+     * Handle on the token stream producer, ie. the Jack lexical analyser.
+     */
     std::shared_ptr<LexicalAnalyser> _lexical_analyser;
+
+    /**
+     * An XML writer that Parser writes the parse tree into. Useful for testing
+     * and debugging.
+     */
+    std::unique_ptr<XMLOutput> _xml_parse_tree;
 
     /**
      * Compiles the class' body.
