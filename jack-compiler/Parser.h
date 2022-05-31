@@ -21,12 +21,18 @@ public:
      */
     void compile_class();
 
-    // TODO: remove this?
-    // /**
-    //  * Compiles instance variables and static variables declared in a class
-    //  * body.
-    //  */
-    // void compile_member_variable_declaration();
+    /**
+     * Compiles the class' body.
+     * This method should be invoked by `compile_class` after the lexical
+     * analyser's cursor has been progressed beyond the class' opening { symbol.
+     */
+    void compile_class_body();
+
+    /**
+     * Compiles instance variables and static variables declared in a class
+     * body.
+     */
+    void compile_class_field_declaration();
 
     /**
      * Compiles a complete instance method, static method or constructor.
@@ -92,6 +98,11 @@ public:
     void compile_term();
 
     /**
+     * Compiles a subroutine invocation.
+     */
+    void compile_subroutine_invocation();
+
+    /**
      * Compiles a comma-separated list of *expressions*.
      */
     int compile_expression_list();
@@ -109,11 +120,29 @@ private:
     std::unique_ptr<XMLOutput> _xml_parse_tree;
 
     /**
-     * Compiles the class' body.
-     * This method should be invoked by `compile_class` after the lexical
-     * analyser's cursor has been progressed beyond the class' opening { symbol.
+     * Returns true if the current token is of a certain type, equal to a 
+     * certain string, or is a certain keyword, etc.
+     * Invoking these functions will always advance the token stream cursor
+     * forward one step.
      */
-    void compile_class_body();
+    bool expect_token_type(TokenType token_type);
+    bool expect_token(const std::string& token);
+    // Expects one of: primitive types, built-in classes or user-defined
+    // classes.
+    bool expect_data_type();   
+
+    // TODO: remove?
+    // bool expect_keyword(Keyword keyword);
+};
+
+class JackParserError : public std::exception {
+public:
+    static const size_t MAX_MSG_LEN = 64;
+
+    JackParserError(char const* const message) throw();
+    virtual char const* what() const throw();
+private:
+    char const* _message;
 };
 
 #endif

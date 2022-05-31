@@ -126,6 +126,10 @@ std::string LexicalAnalyser::get_str_value() {
     return _curr_token;
 }
 
+void LexicalAnalyser::step_back() {
+    _jack_in.seekg(-1, std::ios_base::cur);
+}
+
 void LexicalAnalyser::reset() {
     _jack_in.clear();
     _jack_in.seekg(0);
@@ -324,8 +328,6 @@ std::string LexicalAnalyser::get_token_type() {
 
     return "undefined";
 }
-
-
 
 JackSyntaxError::JackSyntaxError(char const* const message) throw()
     : _message(message) {

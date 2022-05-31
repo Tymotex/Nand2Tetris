@@ -90,6 +90,11 @@ public:
     std::string get_str_value();
 
     /**
+     * Seeks one byte backwards in the input stream.
+     */
+    void step_back();
+
+    /**
      * Restarts the lexical analysis, seeking back to the start of the input
      * stream.
      */
@@ -160,8 +165,11 @@ private:
     std::string get_token_type();
 };
 
+// TODO: how to do exception classes *properly*
 class JackSyntaxError : public std::exception {
 public:
+    static const size_t MAX_MSG_LEN = 64;
+
     JackSyntaxError(char const* const message) throw();
     virtual char const* what() const throw();
 private:
