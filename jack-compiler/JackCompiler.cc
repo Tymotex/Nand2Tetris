@@ -10,6 +10,9 @@
 // intermediate VM language and emit a corresponding .vm file.
 void translate_jack_file_to_vm(const std::string& path);
 
+// Prints verbose lexical analyser output.
+void show_tokeniser_debug_info(std::shared_ptr<LexicalAnalyser> lexical_analyser);
+
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         std::cerr << "Insufficient arguments. Please supply a path "
@@ -68,30 +71,44 @@ void translate_jack_file_to_vm(const std::string& path) {
     std::ofstream output_stream(output_file_path);
     Parser parser(lexical_analyser, output_stream);
     
-    while (lexical_analyser->try_advance()) {
-        std::cout << Colour::BLUE;
-        switch (lexical_analyser->token_type()) {
-            case TokenType::KEYWORD:
-                std::cout << "Keyword:    " << lexical_analyser->get_str_value() << "\n";
-                break;
-            case TokenType::IDENTIFIER:
-                std::cout << "Identifier: " << lexical_analyser->identifier() << "\n";
-                break;
-            case TokenType::SYMBOL:
-                std::cout << "Symbol:     " << lexical_analyser->symbol() << "\n";
-                break;
-            case TokenType::INT_CONST:
-                std::cout << "Int const:  " << lexical_analyser->get_int_value() << "\n";
-                break;
-            case TokenType::STRING_CONST:
-                std::cout << "Str const:  " << lexical_analyser->get_str_value() << "\n";
-                break;
-            case TokenType::COMMENT:
-                std::cout << "Comment:    " << lexical_analyser->get_str_value() << "\n";
-                break;
-            default:
-                break;
-        }
-        std::cout << Colour::RESET;
+    // TODO: DEBUG INFO. Leave commented.
+    // while (lexical_analyser->try_advance()) {
+    //     show_tokeniser_debug_info(lexical_analyser);
+    // }
+
+    // Advance the token stream until the `class` token is reached.
+    while (lexical_analyser->try_advance() &&
+           lexical_analyser->token_type() != TokenType::KEYWORD &&
+           lexical_analyser->keyword() != Keyword::CLASS) {
     }
+
+    // Kick off the recursive descent parsing process.
+    parser.compile_class();
+}
+
+void show_tokeniser_debug_info(std::shared_ptr<LexicalAnalyser> lexical_analyser) {
+    std::cout << Colour::BLUE;
+    switch (lexical_analyser->token_type()) {
+        case TokenType::KEYWORD:
+            std::cout << "\tKeyword:    " << lexical_analyser->get_str_value() << "\n";
+            break;
+        case TokenType::IDENTIFIER:
+            std::cout << "\tIdentifier: " << lexical_analyser->identifier() << "\n";
+            break;
+        case TokenType::SYMBOL:
+            std::cout << "\tSymbol:     " << lexical_analyser->symbol() << "\n";
+            break;
+        case TokenType::INT_CONST:
+            std::cout << "\tInt const:  " << lexical_analyser->get_int_value() << "\n";
+            break;
+        case TokenType::STRING_CONST:
+            std::cout << "\tStr const:  " << lexical_analyser->get_str_value() << "\n";
+            break;
+        case TokenType::COMMENT:
+            std::cout << "\tComment:    " << lexical_analyser->get_str_value() << "\n";
+            break;
+        default:
+            break;
+    }
+    std::cout << Colour::RESET;
 }

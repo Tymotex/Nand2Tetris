@@ -21,11 +21,12 @@ public:
      */
     void compile_class();
 
-    /**
-     * Compiles instance variables and static variables declared in a class
-     * body.
-     */
-    void compile_member_variable_declaration();
+    // TODO: remove this?
+    // /**
+    //  * Compiles instance variables and static variables declared in a class
+    //  * body.
+    //  */
+    // void compile_member_variable_declaration();
 
     /**
      * Compiles a complete instance method, static method or constructor.
@@ -97,6 +98,13 @@ public:
 
 private:
     std::shared_ptr<LexicalAnalyser> _lexical_analyser;
+
+    /**
+     * Compiles the class' body.
+     * This method should be invoked by `compile_class` after the lexical
+     * analyser's cursor has been progressed beyond the class' opening { symbol.
+     */
+    void compile_class_body();
 };
 
 #endif
