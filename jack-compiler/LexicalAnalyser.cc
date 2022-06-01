@@ -68,6 +68,7 @@ bool LexicalAnalyser::try_advance() {
         try_read_int_literal();
     } else if (first_char == '/') {
         char second_char = _jack_in.get();
+        _jack_in.seekg(-1, std::ios_base::cur);
         if (second_char == '/') {
             try_advance_past_comment(false);
             // Retry advance.
@@ -120,7 +121,14 @@ std::string LexicalAnalyser::get_str_value() {
 }
 
 void LexicalAnalyser::step_back() {
-    _jack_in.seekg(-_curr_token.size(), std::ios_base::cur);
+    // Note: for string constants, we need to step back 2 extra bytes because
+    //       to account for the 2 double quotes "".
+    // TODO: comments screw things up. We should strip them in the first pass upfront. They shouldn't be regarded as valid tokens.
+
+    if (_curr_token_type == TokenType::STRING_CONST) 
+        _jack_in.seekg(-(_curr_token.size() + 2), std::ios_base::cur);
+    else 
+        _jack_in.seekg(-_curr_token.size(), std::ios_base::cur);
 }
 
 void LexicalAnalyser::reset() {

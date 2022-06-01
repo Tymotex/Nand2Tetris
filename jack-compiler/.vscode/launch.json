@@ -6,7 +6,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/JackCompiler",
-            "args": ["${workspaceFolder}/test-files/ExpressionLessSquare"],
+            "args": ["${workspaceFolder}/test-files/ArrayTest"],
             "stopAtEntry": true,
             "cwd": "${workspaceFolder}",
             "environment": [],

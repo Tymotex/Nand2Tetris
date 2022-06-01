@@ -197,7 +197,6 @@ void Parser::compile_statements() {
 //     var type varName;
 //     var type varName1, varName2, ...;
 void Parser::compile_variable_declaration() {
-    // TODO: support form: `var type varName, anotherVar, otherVar, ...;`
     _xml_parse_tree->open_xml("varDec");
     
     // var
@@ -230,20 +229,44 @@ void Parser::compile_variable_declaration() {
     _xml_parse_tree->close_xml();
 }
 
+// Let statements can be of form:
+//     let varName = expression;
+//     let varName[expression] = expression;
 void Parser::compile_let() {
-    // TODO: support let varName[expr] = expression;
     _xml_parse_tree->open_xml("letStatement");
+    
+    // let
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    
+    // varName
     if (!expect_token_type(TokenType::IDENTIFIER))
         throw JackParserError("Expected variable identifier for let statement");
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+
+    // Optional: subscript operator, '[expression]'
+    if (_lexical_analyser->try_advance() && _lexical_analyser->get_str_value() == "[") {
+        _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+        compile_expression();
+        if (!expect_token("]"))
+            throw JackParserError("Expected subscript operator terminator, ].");
+        _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    } else {
+        _lexical_analyser->step_back();
+    }
+    
+    // =
     if (!expect_token("="))
         throw JackParserError("Expected assignment operator for let statement");
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+
+    // expression
     compile_expression();
+    
+    // ;
     if (!expect_token(";"))
         throw JackParserError("Unterminated let statement.");
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+
     _xml_parse_tree->close_xml();
 }
 
@@ -489,11 +512,6 @@ void Parser::compile_term() {
     };
 
     switch (token_type) {
-        // TODO: remove?
-        // case TokenType::INT_CONST:
-        //     break;
-        // case TokenType::STRING_CONST:
-        //     break;
         case TokenType::KEYWORD:
             if (builtin_literals.find(curr_token) == builtin_literals.end()) {
                 // TODO: this is dumb. fix
@@ -506,14 +524,22 @@ void Parser::compile_term() {
             // TODO: support array access: `varName[expr]`
             // We need to look ahead one character to ascertain whether this
             // term is a subroutine call or a reference to a variable.
+            // TODO: this peek/look-ahead operation is common. Maybe make a method out of it in LexicalAnalyser.
             _lexical_analyser->try_advance();
             peeked_token = _lexical_analyser->get_str_value();
             _lexical_analyser->step_back();
-            // TODO: this peek/look-ahead operation is common. Maybe make a method out of it in LexicalAnalyser.
-
             if (peeked_token == "(" || peeked_token == ".") {
                 // Compile subroutine call.
                 compile_subroutine_invocation();
+            } else if (peeked_token == "[") {
+                // TODO: this is duplicated from compile_let()
+                // Compile subscript operator on variable.
+                _lexical_analyser->try_advance(); // Re-do step forward... TODO: this is janky.
+                _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+                compile_expression();
+                if (!expect_token("]"))
+                    throw JackParserError("Expected subscript operator terminator, ].");
+                _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
             }
             break;
         case TokenType::SYMBOL:
