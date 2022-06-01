@@ -16,6 +16,8 @@ public:
      */
     explicit Parser(std::shared_ptr<LexicalAnalyser> lexical_analyser, const std::string& o);
 
+    ~Parser();
+
     /**
      * Compiles a class construct.
      */

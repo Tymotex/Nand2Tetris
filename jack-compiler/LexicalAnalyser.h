@@ -99,6 +99,11 @@ public:
      * stream.
      */
     void reset();
+
+
+    Keyword get_keyword(const std::string& keyword);
+
+    std::string get_token_type();
 private:
     /**
      * Jack character input stream.
@@ -158,11 +163,6 @@ private:
      * forward as a side effect.
      */
     void try_read_identifier();
-
-
-    Keyword get_keyword(const std::string& keyword);
-
-    std::string get_token_type();
 };
 
 // TODO: how to do exception classes *properly*
