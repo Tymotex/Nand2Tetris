@@ -106,6 +106,13 @@ public:
     void write_xml_tokens(const std::string& token_xml_output_path,
         const bool& enable_debug);
 
+    /**
+     * Advances until the first (and only) class declaration is reached. At the
+     * end of the invocation, the stream cursor should point to the `class`
+     * token.
+     */
+    bool try_advance_until_class_declaration();
+
     Keyword get_keyword(const std::string& keyword);
 
     std::string get_token_type();

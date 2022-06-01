@@ -116,7 +116,7 @@ std::string LexicalAnalyser::get_str_value() {
 }
 
 void LexicalAnalyser::step_back() {
-    _jack_in.seekg(-1, std::ios_base::cur);
+    _jack_in.seekg(-_curr_token.size(), std::ios_base::cur);
 }
 
 void LexicalAnalyser::reset() {
@@ -145,6 +145,15 @@ void LexicalAnalyser::write_xml_tokens(const std::string& token_xml_output_path,
 
     token_xml_out.close_xml();
     reset();
+}
+
+bool LexicalAnalyser::try_advance_until_class_declaration() {
+    while (true) {
+        if (token_type() == TokenType::KEYWORD && keyword() == Keyword::CLASS)
+            return true;
+        try_advance();
+    }
+    return false;
 }
 
 void LexicalAnalyser::show_tokeniser_debug_info() {

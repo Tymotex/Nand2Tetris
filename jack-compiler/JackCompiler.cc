@@ -62,25 +62,33 @@ int main(int argc, char* argv[]) {
 
 void translate_jack_file_to_vm(const std::string& path) {
     std::string output_file_path =
-        get_directory_of_file(path) + "/" + get_basename(path) + ".xml";
+        get_directory_of_file(path) + get_basename(path) + ".xml";
     std::string token_xml_output_path =
-        get_directory_of_file(path) + "/" + get_basename(path) + "T.xml";
+        get_directory_of_file(path) + get_basename(path) + "T.xml";
 
     std::shared_ptr<LexicalAnalyser> lexical_analyser =
         std::make_shared<LexicalAnalyser>(path);
     Parser parser(lexical_analyser, output_file_path);
     
-    lexical_analyser->write_xml_tokens(token_xml_output_path, true);
+    lexical_analyser->write_xml_tokens(token_xml_output_path, false);
 
-    // // Advance the token stream until the `class` token is reached.
-    // // TODO: make this a method.
-    // while (lexical_analyser->try_advance() &&
-    //        lexical_analyser->token_type() != TokenType::KEYWORD &&
-    //        lexical_analyser->keyword() != Keyword::CLASS) {
-    // }
+    // Advance the token stream until the `class` token is reached.
+    if (!lexical_analyser->try_advance_until_class_declaration())
+        throw JackSyntaxError("Could not find class declaration.");
 
-    // // Kick off the recursive descent parsing process.
-    // parser.compile_class();
+    // Kick off the recursive descent parsing process.
+    parser.compile_class();
+
+    std::cout << Colour::MAGENTA
+              << "\tOutput XML path: "
+              << output_file_path
+              << Colour::RESET
+              << "\n";
+    std::cout << Colour::MAGENTA
+              << "\tToken XML path:  "
+              << token_xml_output_path
+              << Colour::RESET
+              << "\n";
 }
 
 

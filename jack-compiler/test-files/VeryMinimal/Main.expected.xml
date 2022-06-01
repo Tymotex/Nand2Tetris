@@ -12,6 +12,7 @@
     <symbol> ) </symbol>
     <subroutineBody>
       <symbol> { </symbol>
+      <statements>
         <returnStatement>
           <keyword> return </keyword>
           <symbol> ; </symbol>
