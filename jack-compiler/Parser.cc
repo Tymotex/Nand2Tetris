@@ -56,16 +56,35 @@ void Parser::compile_class_body() {
     }
 }
 
+// TODO: Document each of these methods with the standard form, for reference
+// Class field declarations can be of form:
+//     static|field type varName;
+//     static|field type varName1, varName2, ...;
 void Parser::compile_class_field_declaration() {
-    // TODO: support 'static'|'field' type varName, varName, varName, ...;
     _xml_parse_tree->open_xml("classVarDec");
+    // static|field
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+
+    // type
     if (!expect_data_type())
         throw JackParserError("Expected a data type for field declaration.");
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+
+    // varName
     if (!expect_token_type(TokenType::IDENTIFIER))
         throw JackParserError("Expected an identifier for field declaration.");
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+
+    // Optional trailing variable list: ', varName2, varName3, ...'
+    while (_lexical_analyser->try_advance() && _lexical_analyser->get_str_value() == ",") {
+        _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+        if (!expect_token_type(TokenType::IDENTIFIER))
+            throw JackParserError("Expected an identifier for field declaration.");
+        _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    }
+    _lexical_analyser->step_back();
+    
+    // ;
     if (!expect_token(";"))
         throw JackParserError("Unterminated field declaration.");
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
@@ -174,16 +193,37 @@ void Parser::compile_statements() {
     }
 }
 
+// Variable declarations appearing in subroutine contexts can be of form:
+//     var type varName;
+//     var type varName1, varName2, ...;
 void Parser::compile_variable_declaration() {
     // TODO: support form: `var type varName, anotherVar, otherVar, ...;`
     _xml_parse_tree->open_xml("varDec");
+    
+    // var
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+
+    // type
     if (!expect_data_type())
         throw JackParserError("Expected data type for variable declaration.");
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+
+    // varName
     if (!expect_token_type(TokenType::IDENTIFIER))
         throw JackParserError("Expected identifier for variable declaration.");
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+
+    // Optional trailing variable list: ', varName2, varName3, ...'
+    // TODO: this is duplicated with the classVarDec compile implementation.
+    while (_lexical_analyser->try_advance() && _lexical_analyser->get_str_value() == ",") {
+        _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+        if (!expect_token_type(TokenType::IDENTIFIER))
+            throw JackParserError("Expected an identifier for field declaration.");
+        _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    }
+    _lexical_analyser->step_back();
+
+    // ;
     if (!expect_token(";"))
         throw JackParserError("Unterminated variable declaration statement");
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
@@ -207,10 +247,16 @@ void Parser::compile_let() {
     _xml_parse_tree->close_xml();
 }
 
+// If-statements can be of the form:
+//     if (expression) { statements }
+//     if (expression) { statements } else { statements }
 void Parser::compile_if() {
-    // TODO: support if (expr) { statements } else { statements }
     _xml_parse_tree->open_xml("ifStatement");
+    
+    // if
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    
+    // (expression)
     if (!expect_token("("))
         throw JackParserError("Expected start of condition for if-statement.");
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
@@ -218,10 +264,25 @@ void Parser::compile_if() {
     if (!expect_token(")"))
         throw JackParserError("Expected end of condition for if-statement.");
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+
+    // { statements }
     if (!expect_token("{"))
         throw JackParserError("Expected start of if-statement scope.");
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
     compile_statements();
+
+    // Optional: else { statements }
+    _lexical_analyser->try_advance();
+    if (_lexical_analyser->get_str_value() == "else") {
+        _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+        if (!expect_token("{"))
+            throw JackParserError("Expected start of else-statement scope.");
+        _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+        compile_statements();
+    } else {
+        _lexical_analyser->step_back();
+    }
+
     _xml_parse_tree->close_xml();
 }
 
@@ -511,13 +572,13 @@ int Parser::compile_expression_list() {
             break;
         }
         
-
         // We expect the next token to be a comma followed by another
         // expression, but only after the first encountered expression.
         if (num_expressions == 0) {
             _lexical_analyser->step_back();
             compile_expression();
         } else if (curr_token == ",") {
+            _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
             compile_expression();
         } else {
             throw JackParserError("Expected comma between expressions.");

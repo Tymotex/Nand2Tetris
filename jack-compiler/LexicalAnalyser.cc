@@ -70,8 +70,12 @@ bool LexicalAnalyser::try_advance() {
         char second_char = _jack_in.get();
         if (second_char == '/') {
             try_advance_past_comment(false);
+            // Retry advance.
+            try_advance();
         } else if (second_char == '*') {
             try_advance_past_comment(true);
+            // Retry advance.
+            try_advance();
         } else {
             // It's necessary to disambiguate between comments and the division
             // operator, /.
