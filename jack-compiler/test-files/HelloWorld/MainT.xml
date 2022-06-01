@@ -15,10 +15,8 @@
 <symbol> ( </symbol>
 <stringConstant> Hello World </stringConstant>
 <symbol> ) </symbol>
-<symbol> ) </symbol>
 <symbol> ; </symbol>
 <keyword> return </keyword>
-<symbol> ; </symbol>
 <symbol> ; </symbol>
 <symbol> } </symbol>
 <symbol> } </symbol>

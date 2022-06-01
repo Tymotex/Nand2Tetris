@@ -67,47 +67,20 @@ void translate_jack_file_to_vm(const std::string& path) {
         get_directory_of_file(path) + "/" + get_basename(path) + "T.xml";
 
     std::shared_ptr<LexicalAnalyser> lexical_analyser =
-        std::make_shared<LexicalAnalyser>(path, token_xml_output_path);
+        std::make_shared<LexicalAnalyser>(path);
     Parser parser(lexical_analyser, output_file_path);
     
-    // while (lexical_analyser->try_advance()) {
-    //     show_tokeniser_debug_info(lexical_analyser);
+    lexical_analyser->write_xml_tokens(token_xml_output_path, true);
+
+    // // Advance the token stream until the `class` token is reached.
+    // // TODO: make this a method.
+    // while (lexical_analyser->try_advance() &&
+    //        lexical_analyser->token_type() != TokenType::KEYWORD &&
+    //        lexical_analyser->keyword() != Keyword::CLASS) {
     // }
-    // lexical_analyser->reset();
 
-    // Advance the token stream until the `class` token is reached.
-    while (lexical_analyser->try_advance() &&
-           lexical_analyser->token_type() != TokenType::KEYWORD &&
-           lexical_analyser->keyword() != Keyword::CLASS) {
-    }
-
-    // Kick off the recursive descent parsing process.
-    parser.compile_class();
+    // // Kick off the recursive descent parsing process.
+    // parser.compile_class();
 }
 
-void show_tokeniser_debug_info(std::shared_ptr<LexicalAnalyser> lexical_analyser) {
-    std::cout << Colour::BLUE;
-    switch (lexical_analyser->token_type()) {
-        case TokenType::KEYWORD:
-            std::cout << "\tKeyword:    " << lexical_analyser->get_str_value() << "\n";
-            break;
-        case TokenType::IDENTIFIER:
-            std::cout << "\tIdentifier: " << lexical_analyser->identifier() << "\n";
-            break;
-        case TokenType::SYMBOL:
-            std::cout << "\tSymbol:     " << lexical_analyser->symbol() << "\n";
-            break;
-        case TokenType::INT_CONST:
-            std::cout << "\tInt const:  " << lexical_analyser->get_int_value() << "\n";
-            break;
-        case TokenType::STRING_CONST:
-            std::cout << "\tStr const:  " << lexical_analyser->get_str_value() << "\n";
-            break;
-        case TokenType::COMMENT:
-            std::cout << "\tComment:    " << lexical_analyser->get_str_value() << "\n";
-            break;
-        default:
-            break;
-    }
-    std::cout << Colour::RESET;
-}
+

@@ -40,8 +40,7 @@ public:
      * Opens an input file stream from the given Jack source. Prepares it for
      * tokenisation.
      */
-    explicit LexicalAnalyser(const std::string& source_jack_file_path,
-        const std::string& token_xml_output_path);
+    explicit LexicalAnalyser(const std::string& source_jack_file_path);
 
     ~LexicalAnalyser();
 
@@ -100,6 +99,12 @@ public:
      */
     void reset();
 
+    /**
+     * Produces a token stream and writes it as XML to the designated output
+     * stream. Resets the analyser.
+     */
+    void write_xml_tokens(const std::string& token_xml_output_path,
+        const bool& enable_debug);
 
     Keyword get_keyword(const std::string& keyword);
 
@@ -110,17 +115,15 @@ private:
      */
     std::ifstream _jack_in;
 
-    /**
-     * Output stream for all identified tokens. This is mainly for sanity
-     * checking during compiler development.
-     */
-    std::unique_ptr<XMLOutput> _token_xml_out;
-    std::string _token_xml_output_path;
-
     // Cursor helper variables.
     std::string _curr_token;
     TokenType _curr_token_type;
     Keyword _curr_keyword;
+
+    /**
+     * Dumps debug info to `stdout`.
+     */
+    void show_tokeniser_debug_info();
 
     /**
      * Advances the cursor until any non-whitespace character is encountered.
@@ -140,7 +143,6 @@ private:
      * Reads forward from where the cursor's current position and advances it
      * forward as a side effect.
      */
-    // TODO: think of all the different cases for when to 'stop' reading a number.
     void try_read_int_literal();
 
     /**

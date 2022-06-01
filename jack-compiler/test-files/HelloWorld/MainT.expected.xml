@@ -13,7 +13,7 @@
 <symbol> . </symbol>
 <identifier> printString </identifier>
 <symbol> ( </symbol>
-<stringContant> Hello World </stringContant>
+<stringConstant> Hello World </stringConstant>
 <symbol> ) </symbol>
 <symbol> ; </symbol>
 <keyword> return </keyword>

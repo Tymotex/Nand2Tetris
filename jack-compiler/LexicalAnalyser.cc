@@ -1,4 +1,5 @@
 #include "LexicalAnalyser.h"
+#include "utils/Colouriser.h"
 #include "utils/XMLOutput.h"
 #include <string>
 #include <iostream>
@@ -26,21 +27,14 @@ std::unordered_set<char> LexicalAnalyser::symbol_lexicon = {
 
 std::regex LexicalAnalyser::valid_identifier_pattern = std::regex(R"(^[a-zA-Z]\w*$)");
 
-LexicalAnalyser::LexicalAnalyser(const std::string& source_jack_file_path,
-    const std::string& token_xml_output_path)
+LexicalAnalyser::LexicalAnalyser(const std::string& source_jack_file_path)
     : _jack_in(std::ifstream(source_jack_file_path)),
-      _token_xml_out(std::make_unique<XMLOutput>(token_xml_output_path, false, false)),
-      _token_xml_output_path(token_xml_output_path),
       _curr_token(""),
       _curr_token_type(TokenType::UNDEFINED),
       _curr_keyword(Keyword::UNDEFINED) {
-    // Start the XML token stream.
-    _token_xml_out->open_xml("tokens");
 }
 
 LexicalAnalyser::~LexicalAnalyser() {
-    _token_xml_out->close_xml();
-    _token_xml_out->close();
 }
 
 /**
@@ -94,11 +88,6 @@ bool LexicalAnalyser::try_advance() {
             try_read_identifier();
         }
     }
-
-    // Write the extracted token to the debug info XML output stream.
-    if (_curr_token_type != TokenType::COMMENT)
-        _token_xml_out->form_xml(get_token_type(), _curr_token);
-
     return true;
 }
 
@@ -133,13 +122,56 @@ void LexicalAnalyser::step_back() {
 void LexicalAnalyser::reset() {
     _jack_in.clear();
     _jack_in.seekg(0);
-    _token_xml_out->close_xml();
-    _token_xml_out->close();
-    _token_xml_out = std::make_unique<XMLOutput>(_token_xml_output_path, false, false);
-    _token_xml_out->open_xml("tokens");
     _curr_token = "";
     _curr_token_type = TokenType::UNDEFINED;
     _curr_keyword = Keyword::UNDEFINED;
+}
+
+void LexicalAnalyser::write_xml_tokens(const std::string& token_xml_output_path,
+        const bool& enable_debug) {
+    std::string _token_xml_outpu_path;
+    XMLOutput token_xml_out(token_xml_output_path, false, false);
+
+    // Start the XML token stream.
+    token_xml_out.open_xml("tokens");
+
+    while (try_advance()) {
+        if (enable_debug) show_tokeniser_debug_info();
+        // Write the extracted token to the debug info XML output stream.
+        if (_curr_token_type != TokenType::COMMENT) {
+            token_xml_out.form_xml(get_token_type(), _curr_token);
+        }
+    }
+
+    token_xml_out.close_xml();
+    reset();
+}
+
+void LexicalAnalyser::show_tokeniser_debug_info() {
+    std::cout << Colour::BLUE;
+    switch (token_type()) {
+        case TokenType::KEYWORD:
+            std::cout << "\tKeyword:    " << get_str_value() << "\n";
+            break;
+        case TokenType::IDENTIFIER:
+            std::cout << "\tIdentifier: " << identifier() << "\n";
+            break;
+        case TokenType::SYMBOL:
+            std::cout << "\tSymbol:     " << symbol() << "\n";
+            break;
+        case TokenType::INT_CONST:
+            std::cout << "\tInt const:  " << get_int_value() << "\n";
+            break;
+        case TokenType::STRING_CONST:
+            std::cout << "\tStr const:  " << get_str_value() << "\n";
+            break;
+        case TokenType::COMMENT:
+            std::cout << "\tComment:    " << get_str_value() << "\n";
+            break;
+        default:
+            break;
+    }
+    std::cout << Colour::RESET;
 }
 
 void LexicalAnalyser::try_advance_past_whitespace() {
