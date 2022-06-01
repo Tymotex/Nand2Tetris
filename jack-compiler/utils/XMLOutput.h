@@ -15,7 +15,8 @@ public:
     /**
      * Opens a new XML file for writing.
      */
-    explicit XMLOutput(const std::string& output_path, const bool& should_indent);
+    explicit XMLOutput(const std::string& output_path,
+        const bool& should_indent, const bool& should_log);
 
     ~XMLOutput();
 
@@ -57,7 +58,10 @@ private:
     std::stack<std::string> _open_elements;
 
     // Options.
+    // TODO: Refactor options passing. Research how people make it more elegant.
     bool _should_indent;
+    bool _should_log;
+    int _indent_size;
 
     /**
      * Writes `_indent_level` tab characters.

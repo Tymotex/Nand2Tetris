@@ -70,14 +70,11 @@ void translate_jack_file_to_vm(const std::string& path) {
         std::make_shared<LexicalAnalyser>(path, token_xml_output_path);
     Parser parser(lexical_analyser, output_file_path);
     
-    while (lexical_analyser->try_advance()) {
-        // show_tokeniser_debug_info(lexical_analyser);
-    }
-    lexical_analyser->reset();
+    // while (lexical_analyser->try_advance()) {
+    //     show_tokeniser_debug_info(lexical_analyser);
+    // }
+    // lexical_analyser->reset();
 
-    while (lexical_analyser->try_advance()) {
-        show_tokeniser_debug_info(lexical_analyser);
-    }
     // Advance the token stream until the `class` token is reached.
     while (lexical_analyser->try_advance() &&
            lexical_analyser->token_type() != TokenType::KEYWORD &&

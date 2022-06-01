@@ -12,7 +12,7 @@
 
 Parser::Parser(std::shared_ptr<LexicalAnalyser> lexical_analyser, const std::string& output_stream)
     : _lexical_analyser(lexical_analyser),
-      _xml_parse_tree(std::make_unique<XMLOutput>(output_stream, true)) {
+      _xml_parse_tree(std::make_unique<XMLOutput>(output_stream, true, true)) {
 }
 
 Parser::~Parser() {
@@ -39,6 +39,12 @@ void Parser::compile_class_body() {
     std::string curr_token;
     while (_lexical_analyser->try_advance()) {
         curr_token = _lexical_analyser->get_str_value();
+        if (curr_token == "}") {
+            // Reached the end of the class implementation.
+            _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+            break;
+        }
+
         if (curr_token == "constructor" || curr_token == "function" || curr_token == "method") {
             compile_subroutine();
         } else if (curr_token == "field" || curr_token == "static") {
@@ -69,18 +75,28 @@ void Parser::compile_subroutine() {
     if (!expect_token_type(TokenType::IDENTIFIER))
         throw JackParserError("Expected subroutine name.");
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+
+    if (!expect_token("("))
+        throw JackParserError("Expected start of parameter list.");
+    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value()); // TODO: document that this inserts (
     compile_parameter_list();
+
     compile_subroutine_body();
     _xml_parse_tree->close_xml();
 }
 
 void Parser::compile_parameter_list() {
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value()); // TODO: document that this inserts (
     _xml_parse_tree->open_xml("parameterList");
-    expect_token("(");
     std::string curr_token = "";
     int param_num = 1;
-    while (_lexical_analyser->try_advance() && (_lexical_analyser->get_str_value() != ")")) {
+    while (_lexical_analyser->try_advance()) {
+        curr_token = _lexical_analyser->get_str_value();
+        if (curr_token == ")") {
+            _xml_parse_tree->close_xml();
+            _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+            break;
+        }
+
         // Take one step back since we looked ahead to check for ).
         _lexical_analyser->step_back();
 
@@ -108,7 +124,6 @@ void Parser::compile_parameter_list() {
         _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
         ++param_num;
     }
-    _xml_parse_tree->close_xml();
 }
 
 void Parser::compile_subroutine_body() {
@@ -226,10 +241,11 @@ void Parser::compile_return() {
     _xml_parse_tree->open_xml("returnStatement");
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
 
-    _lexical_analyser->try_advance();
-    if (_lexical_analyser->get_str_value() != ";") {
+    if (_lexical_analyser->try_advance() && _lexical_analyser->get_str_value() != ";") {
         // There is a return value. We now resolve the expression.
         compile_expression();
+    } else {
+        _lexical_analyser->step_back();
     }
 
     if (!expect_token(";"))
@@ -470,6 +486,7 @@ int Parser::compile_expression_list() {
         if (curr_token == ")") {
             _xml_parse_tree->close_xml();
             _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+            break;
         }
 
         // We expect the next token to be a comma followed by another

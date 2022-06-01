@@ -29,7 +29,7 @@ std::regex LexicalAnalyser::valid_identifier_pattern = std::regex(R"(^[a-zA-Z]\w
 LexicalAnalyser::LexicalAnalyser(const std::string& source_jack_file_path,
     const std::string& token_xml_output_path)
     : _jack_in(std::ifstream(source_jack_file_path)),
-      _token_xml_out(std::make_unique<XMLOutput>(token_xml_output_path, false)),
+      _token_xml_out(std::make_unique<XMLOutput>(token_xml_output_path, false, false)),
       _token_xml_output_path(token_xml_output_path),
       _curr_token(""),
       _curr_token_type(TokenType::UNDEFINED),
@@ -135,7 +135,7 @@ void LexicalAnalyser::reset() {
     _jack_in.seekg(0);
     _token_xml_out->close_xml();
     _token_xml_out->close();
-    _token_xml_out = std::make_unique<XMLOutput>(_token_xml_output_path, false);
+    _token_xml_out = std::make_unique<XMLOutput>(_token_xml_output_path, false, false);
     _token_xml_out->open_xml("tokens");
     _curr_token = "";
     _curr_token_type = TokenType::UNDEFINED;

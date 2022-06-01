@@ -12,6 +12,7 @@
     <symbol> ) </symbol>
     <subroutineBody>
       <symbol> { </symbol>
+      <statements>
         <doStatement>
           <keyword> do </keyword>
           <identifier> Output </identifier>
