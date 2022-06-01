@@ -246,7 +246,7 @@ void Parser::compile_let() {
     // Optional: subscript operator, '[expression]'
     if (_lexical_analyser->try_advance() && _lexical_analyser->get_str_value() == "[") {
         _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
-        compile_expression();
+        compile_expression(0);
         if (!expect_token("]"))
             throw JackParserError("Expected subscript operator terminator, ].");
         _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
@@ -260,7 +260,7 @@ void Parser::compile_let() {
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
 
     // expression
-    compile_expression();
+    compile_expression(0);
     
     // ;
     if (!expect_token(";"))
@@ -283,7 +283,7 @@ void Parser::compile_if() {
     if (!expect_token("("))
         throw JackParserError("Expected start of condition for if-statement.");
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
-    compile_expression();
+    compile_expression(0);
     if (!expect_token(")"))
         throw JackParserError("Expected end of condition for if-statement.");
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
@@ -309,20 +309,29 @@ void Parser::compile_if() {
     _xml_parse_tree->close_xml();
 }
 
+// While statements can be of form:
+//     while (expression) { statements }
 void Parser::compile_while() {
     _xml_parse_tree->open_xml("whileStatement");
+    
+    // while
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+
+    // (expression)
     if (!expect_token("("))
         throw JackParserError("Expected start of condition for while-loop.");
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
-    compile_expression();
+    compile_expression(0);
     if (!expect_token(")"))
         throw JackParserError("Expected end of condition for while-loop.");
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+
+    // { statements }
     if (!expect_token("{"))
         throw JackParserError("Expected start of if-statement scope.");
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
     compile_statements();
+
     _xml_parse_tree->close_xml();
 }
 
@@ -351,7 +360,7 @@ void Parser::compile_return() {
     if (_lexical_analyser->try_advance() && _lexical_analyser->get_str_value() != ";") {
         // There is a return value. We now resolve the expression.
         _lexical_analyser->step_back();
-        compile_expression();
+        compile_expression(0);
     } else {
         _lexical_analyser->step_back();
     }
@@ -465,12 +474,12 @@ void Parser::compile_return() {
 //               <symbol> ) </symbol>
 //             </term>
 //         </expression>
-void Parser::compile_expression() {
+void Parser::compile_expression(int nest_level) {
     _xml_parse_tree->open_xml("expression");
 
     // Process the first term, then handle subsequent operators and terms.
     // There must be at least a single term for the expression to be valid.
-    compile_term();
+    compile_term(nest_level);
 
     std::string curr_token;
     std::unordered_set<std::string> binary_operators = {
@@ -484,17 +493,22 @@ void Parser::compile_expression() {
         // compiling the expression.
         if (binary_operators.find(curr_token) != binary_operators.end()) {
             _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
-            compile_term();
+            compile_term(nest_level);
+        // TODO: We need to conditionally stop at ) based on whether we are in a nested expression or not...
+        } else if (curr_token == ")" && nest_level > 0) {
+            _xml_parse_tree->close_xml();
+            _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+            break;
         } else {
             // Take a step back since we looked ahead.
             _lexical_analyser->step_back();
+            _xml_parse_tree->close_xml();
             break;
         }
     }
-    _xml_parse_tree->close_xml();
 }
 
-void Parser::compile_term() {
+void Parser::compile_term(int nest_level) {
     _xml_parse_tree->open_xml("term");
     _lexical_analyser->try_advance();
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
@@ -536,7 +550,7 @@ void Parser::compile_term() {
                 // Compile subscript operator on variable.
                 _lexical_analyser->try_advance(); // Re-do step forward... TODO: this is janky.
                 _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
-                compile_expression();
+                compile_expression(0);
                 if (!expect_token("]"))
                     throw JackParserError("Expected subscript operator terminator, ].");
                 _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
@@ -545,11 +559,11 @@ void Parser::compile_term() {
         case TokenType::SYMBOL:
             if (curr_token == "(") {
                 // Compile a sub-expression.
-                compile_expression();
+                compile_expression(nest_level + 1);
             } else if (unary_operators.find(curr_token) != unary_operators.end()) {
                 // When a unary operator is encountered, we expect a term to 
                 // immediately follow.
-                compile_term();
+                compile_term(nest_level);
             } else {
                 // TODO: this is dumb. fix
                 std::stringstream err_msg;
@@ -602,10 +616,10 @@ int Parser::compile_expression_list() {
         // expression, but only after the first encountered expression.
         if (num_expressions == 0) {
             _lexical_analyser->step_back();
-            compile_expression();
+            compile_expression(0);
         } else if (curr_token == ",") {
             _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
-            compile_expression();
+            compile_expression(0);
         } else {
             throw JackParserError("Expected comma between expressions.");
         }

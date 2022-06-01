@@ -91,13 +91,13 @@ public:
      * Compiles an expression which may consist of constants, literals,
      * variables, invocations, symbols, etc.
      */
-    void compile_expression();
+    void compile_expression(int nest_level);
 
     /**
      * Compiles an individual *term*, which appears as tokens within an 
      * *expression*.
      */
-    void compile_term();
+    void compile_term(int nest_level);
 
     /**
      * Compiles a subroutine invocation.
