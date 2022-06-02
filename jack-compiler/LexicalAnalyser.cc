@@ -118,8 +118,10 @@ bool LexicalAnalyser::try_advance() {
         _jack_in.seekg(-1, std::ios_base::cur);
         try_read_int_literal();
     } else if (first_char == '/') {
+        // Peek at the following character.
         char second_char = _jack_in.get();
         _jack_in.seekg(-1, std::ios_base::cur);
+
         if (second_char == '/') {
             try_advance_past_comment(false);
             // Retry advance.
@@ -253,7 +255,8 @@ void LexicalAnalyser::show_tokeniser_debug_info() {
 
 void LexicalAnalyser::try_advance_past_whitespace() {
     while (!(_jack_in.eof())) {
-        if (!std::isspace(_jack_in.get())) {
+        char c = _jack_in.get();
+        if (!std::isspace(c)) {
             if (_jack_in.eof()) return;
             _jack_in.seekg(-1, std::ios_base::cur);
             return;
@@ -266,7 +269,7 @@ void LexicalAnalyser::try_read_string_literal() {
     char c;
     while ((c = _jack_in.get()) != '"') {
         if (_jack_in.eof() || c == '\n')
-            throw JackSyntaxError("Expected \" before newline or EOF while reading string literal.");
+            throw JackSyntaxError(*this, "Expected \" before newline or EOF while reading string literal.");
         token.push_back(c);
     }
     _curr_token = token;
@@ -285,7 +288,7 @@ void LexicalAnalyser::try_read_int_literal() {
     // Scan digits into token until a non-numeric character is encountered.
     char c;
     while (std::isdigit(c = _jack_in.get())) {
-        if (_jack_in.eof()) throw JackSyntaxError("Unexpected EOF while reading integer literal.");
+        if (_jack_in.eof()) throw JackSyntaxError(*this, "Unexpected EOF while reading integer literal.");
         token.push_back(c);
     }
 
@@ -314,7 +317,7 @@ bool LexicalAnalyser::try_advance_past_comment(const bool& multiline) {
             char c = _jack_in.get();
             if (c == '*') {
                 if (_jack_in.eof())
-                    throw JackSyntaxError("Unexpected EOF while reading "
+                    throw JackSyntaxError(*this, "Unexpected EOF while reading "
                                           "multi-line comment.");
                 char c = _jack_in.get();
                 if (c == '/') {
@@ -352,7 +355,7 @@ bool LexicalAnalyser::try_read_keyword() {
            is_prefix_of_any_keyword(token, field_declarers) ||
            is_prefix_of_any_keyword(token, builtin_literals)) {
         if (_jack_in.eof())
-            throw JackSyntaxError("Unexpected EOF while reading Jack keyword.");
+            throw JackSyntaxError(*this, "Unexpected EOF while reading Jack keyword.");
         if (is_keyword(token)) {
             // Matched a keyword, but there mustn't be any alphanumeric
             // or underscore character immediately after. This is to prevent
@@ -392,7 +395,7 @@ void LexicalAnalyser::try_read_identifier() {
     while (std::isalnum(c) || c == '_') {
         token.push_back(c);
         if (_jack_in.eof())
-            throw JackSyntaxError("Unexpected EOF while reading identifier.");
+            throw JackSyntaxError(*this, "Unexpected EOF while reading identifier.");
         c = _jack_in.get();
     }
 
@@ -402,7 +405,7 @@ void LexicalAnalyser::try_read_identifier() {
     // Validate the identifier.
     if (!std::regex_match(token, valid_identifier_pattern)) {
         std::string err_msg = "Invalid identifier name: '" + token + "'";
-        throw JackSyntaxError(err_msg.c_str());
+        throw JackSyntaxError(*this, err_msg.c_str());
     } else {
         _curr_token = token;
         _curr_token_type = TokenType::IDENTIFIER;
@@ -438,8 +441,13 @@ std::string LexicalAnalyser::get_token_type() {
     return "undefined";
 }
 
-JackSyntaxError::JackSyntaxError(char const* const message) throw()
-    : _message(message) {
+JackSyntaxError::JackSyntaxError(LexicalAnalyser& lexical_analyser, char const* const message) throw()
+        : _message(message) {
+    std::cerr << Colour::RED
+              << "Syntax Error: " 
+              << message
+              << Colour::RESET
+              << std::endl;
 }
 
 char const* JackSyntaxError::what() const throw() {

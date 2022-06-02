@@ -74,7 +74,7 @@ void translate_jack_file_to_vm(const std::string& path) {
 
     // Advance the token stream until the `class` token is reached.
     if (!lexical_analyser->try_advance_until_class_declaration())
-        throw JackSyntaxError("Could not find class declaration.");
+        throw JackSyntaxError(*lexical_analyser, "Could not find class declaration.");
 
     // Kick off the recursive descent parsing process.
     parser.compile_class();

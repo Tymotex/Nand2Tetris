@@ -60,7 +60,7 @@ void XMLOutput::indent() {
     for (int i = 0; i < _indent_level; ++i) {
         for (int j = 0; j < _indent_size; ++j) {
             _output_file << " ";
-            if (_should_indent)
+            if (_should_log)
                 std::cout << " ";
         }
     }

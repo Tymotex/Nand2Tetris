@@ -1,13 +1,14 @@
 #include "LexicalAnalyser.h"
 #include "Parser.h"
 #include "utils/XMLOutput.h"
+#include "utils/Colouriser.h"
 #include <iostream>
 #include <fstream>
 #include <memory>
 
 Parser::Parser(std::shared_ptr<LexicalAnalyser> lexical_analyser, const std::string& output_stream)
     : _lexical_analyser(lexical_analyser),
-      _xml_parse_tree(std::make_unique<XMLOutput>(output_stream, true, true)) {
+      _xml_parse_tree(std::make_unique<XMLOutput>(output_stream, true, false)) {
 }
 
 Parser::~Parser() {
@@ -52,8 +53,8 @@ void Parser::compile_class_body() {
         } else if (curr_token == "constructor" || curr_token == "function" || curr_token == "method") {
             compile_subroutine();
         } else {
-            throw JackParserError("Unexpected token in class body. Expected "
-                                  "subroutine or field declaration");
+            throw JackParserError(*_lexical_analyser, 
+                "Unexpected token in class body. Expected subroutine or field declaration.");
         }
     }
 }
@@ -175,9 +176,9 @@ void Parser::compile_statements() {
         else if (curr_token == "while")  compile_while();
         else if (curr_token == "return") compile_return();
         else if (curr_token == "var")
-            throw JackParserError("Variable declarations must precede statements.");
+            throw JackParserError(*_lexical_analyser, "Variable declarations must precede statements.");
         else
-            throw JackParserError("Start of unexpected statement.");
+            throw JackParserError(*_lexical_analyser, "Start of unexpected statement.");
     }
 }
 
@@ -475,7 +476,7 @@ void Parser::compile_term(int nest_level) {
     switch (token_type) {
         case TokenType::KEYWORD:
             if (LexicalAnalyser::builtin_literals.find(curr_token) == LexicalAnalyser::builtin_literals.end())
-                throw JackParserError("Invalid keyword for term '" + curr_token + "'.");
+                throw JackParserError(*_lexical_analyser, "Invalid keyword for term '" + curr_token + "'.");
             break;
         case TokenType::IDENTIFIER:
             // We need to look ahead one character to ascertain whether this
@@ -498,7 +499,7 @@ void Parser::compile_term(int nest_level) {
                 // immediately follow.
                 compile_term(nest_level);
             } else {
-                throw JackParserError("Unexpected expression symbol '" + curr_token + "'.");
+                throw JackParserError(*_lexical_analyser, "Unexpected expression symbol '" + curr_token + "'.");
             }
             break;
         default:
@@ -521,7 +522,7 @@ void Parser::compile_subroutine_invocation() {
         expect_token_type(TokenType::IDENTIFIER, "Expected an identifier in subroutine invocation.");
         compile_subroutine_invocation();
     } else {
-        throw JackParserError("Invalid subroutine invocation.");
+        throw JackParserError(*_lexical_analyser, "Invalid subroutine invocation.");
     }
 }
 
@@ -549,7 +550,7 @@ int Parser::compile_expression_list() {
             xml_capture_token();
             compile_expression(0);
         } else {
-            throw JackParserError("Expected comma between expressions.");
+            throw JackParserError(*_lexical_analyser, "Expected comma between expressions.");
         }
 
         ++num_expressions;
@@ -585,7 +586,7 @@ bool Parser::try_compile_trailing_variable_list() {
 void Parser::expect_token_type(TokenType token_type, const std::string& err_message) {
     _lexical_analyser->try_advance();
     if (_lexical_analyser->token_type() != token_type) {
-        throw JackParserError(err_message.c_str());
+        throw JackParserError(*_lexical_analyser, err_message.c_str());
     }
     xml_capture_token();
 }
@@ -593,7 +594,7 @@ void Parser::expect_token_type(TokenType token_type, const std::string& err_mess
 void Parser::expect_token(const std::string& token, const std::string& err_message) {
     _lexical_analyser->try_advance();
     if (_lexical_analyser->get_token() != token) {
-        throw JackParserError(err_message.c_str());
+        throw JackParserError(*_lexical_analyser, err_message.c_str());
     }
     xml_capture_token();
 }
@@ -606,7 +607,7 @@ void Parser::expect_data_type(const std::string& err_message) {
     std::string token = _lexical_analyser->get_token();
     if ((LexicalAnalyser::data_types.find(token) == LexicalAnalyser::data_types.end()) &&
             _lexical_analyser->token_type() != TokenType::IDENTIFIER) {
-        throw JackParserError(err_message.c_str());
+        throw JackParserError(*_lexical_analyser, err_message.c_str());
     }
     xml_capture_token();
 }
@@ -615,12 +616,17 @@ void Parser::xml_capture_token() {
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_token());
 }
 
-JackParserError::JackParserError(char const* const message) throw()
-    : _message(message) {
+JackParserError::JackParserError(LexicalAnalyser& lexical_analyser, char const* const message) throw() 
+        : _message(message) {
+    std::cerr << Colour::RED
+              << "Parser Error: " 
+              << message
+              << Colour::RESET
+              << std::endl;
 }
 
-JackParserError::JackParserError(const std::string& message) throw()
-    : _message(message.c_str()) {
+JackParserError::JackParserError(LexicalAnalyser& lexical_analyser, const std::string& message) throw()
+        : JackParserError(lexical_analyser, message.c_str()) {
 }
 
 char const* JackParserError::what() const throw() {

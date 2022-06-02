@@ -155,8 +155,8 @@ class JackParserError : public std::exception {
 public:
     static const size_t MAX_MSG_LEN = 64;
 
-    JackParserError(char const* const message) throw();
-    JackParserError(const std::string& message) throw();
+    JackParserError(LexicalAnalyser& lexical_analyser, char const* const message) throw();
+    JackParserError(LexicalAnalyser& lexical_analyser, const std::string& message) throw();
 
     virtual char const* what() const throw();
 private:

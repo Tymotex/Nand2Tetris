@@ -207,13 +207,11 @@ private:
     bool is_prefix_of_any_keyword(const std::string& token, std::unordered_set<std::string>& lexicon);
 };
 
-// TODO: how to do exception classes *properly*
-// TODO: attach line numbers to all parse errors (and syntax errors). The error classes should be passed this extra info.
 class JackSyntaxError : public std::exception {
 public:
     static const size_t MAX_MSG_LEN = 64;
 
-    JackSyntaxError(char const* const message) throw();
+    JackSyntaxError(LexicalAnalyser& lexical_analyser, char const* const message) throw();
     virtual char const* what() const throw();
 private:
     char const* _message;
