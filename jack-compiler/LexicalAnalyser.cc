@@ -25,6 +25,39 @@ std::unordered_set<char> LexicalAnalyser::symbol_lexicon = {
     '<', '>', '=', '~'
 };
 
+std::unordered_map<std::string, Keyword> LexicalAnalyser::string_to_keyword = {
+    {"class", Keyword::CLASS},
+    {"method", Keyword::METHOD},
+    {"function", Keyword::FUNCTION},
+    {"constructor", Keyword::CONSTRUCTOR},
+    {"int", Keyword::INT},
+    {"boolean", Keyword::BOOLEAN},
+    {"char", Keyword::CHAR},
+    {"void", Keyword::VOID},
+    {"var", Keyword::VAR},
+    {"static", Keyword::STATIC},
+    {"field", Keyword::FIELD},
+    {"let", Keyword::LET},
+    {"do", Keyword::DO},
+    {"if", Keyword::IF},
+    {"else", Keyword::ELSE},
+    {"while", Keyword::WHILE},
+    {"return", Keyword::RETURN},
+    {"true", Keyword::TRUE},
+    {"false", Keyword::FALSE},
+    {"null", Keyword::NULL_KEYWORD},
+    {"this", Keyword::THIS}
+};
+
+std::unordered_map<TokenType, std::string> LexicalAnalyser::token_type_to_string = {
+    {TokenType::KEYWORD, "keyword"},
+    {TokenType::SYMBOL, "symbol"},
+    {TokenType::IDENTIFIER, "identifier"},
+    {TokenType::INT_CONST, "integerConstant"},
+    {TokenType::STRING_CONST, "stringConstant"},
+    {TokenType::COMMENT, "comment"}
+};
+
 std::regex LexicalAnalyser::valid_identifier_pattern = std::regex(R"(^[a-zA-Z]\w*$)");
 
 LexicalAnalyser::LexicalAnalyser(const std::string& source_jack_file_path)
@@ -123,8 +156,6 @@ std::string LexicalAnalyser::get_str_value() {
 void LexicalAnalyser::step_back() {
     // Note: for string constants, we need to step back 2 extra bytes because
     //       to account for the 2 double quotes "".
-    // TODO: comments screw things up. We should strip them in the first pass upfront. They shouldn't be regarded as valid tokens.
-
     if (_curr_token_type == TokenType::STRING_CONST) 
         _jack_in.seekg(-(_curr_token.size() + 2), std::ios_base::cur);
     else 
@@ -275,6 +306,16 @@ bool LexicalAnalyser::try_advance_past_comment(const bool& multiline) {
     return true;
 }
 
+bool LexicalAnalyser::is_prefix_of_any_keyword(const std::string& token) {
+    for (const std::string& keyword : keyword_lexicon) {
+        auto res = std::mismatch(token.begin(), token.end(), keyword.begin());
+        if (res.first == token.end()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool LexicalAnalyser::try_read_keyword() {
     std::string token = "";
 
@@ -282,9 +323,7 @@ bool LexicalAnalyser::try_read_keyword() {
     char c = _jack_in.get();
     token.push_back(c);
 
-    // TODO: this should not be hard-coded... The 11 is meant to be strlen("constructor")
-    // TODO: replace this with your own basic implementation of a trie structure.
-    while (num_read <= 11) {
+    while (is_prefix_of_any_keyword(token)) {
         if (_jack_in.eof())
             throw JackSyntaxError("Unexpected EOF while reading Jack keyword.");
         if (keyword_lexicon.find(token) != keyword_lexicon.end()) {
@@ -343,42 +382,17 @@ void LexicalAnalyser::try_read_identifier() {
     }
 }
 
-// TODO: is there a better way of doing this...?
 Keyword LexicalAnalyser::get_keyword(const std::string& keyword) {
-    if (keyword == "class")            return Keyword::CLASS;
-    else if (keyword == "method")      return Keyword::METHOD;
-    else if (keyword == "function")    return Keyword::FUNCTION;
-    else if (keyword == "constructor") return Keyword::CONSTRUCTOR;
-    else if (keyword == "int")         return Keyword::INT;
-    else if (keyword == "boolean")     return Keyword::BOOLEAN;
-    else if (keyword == "char")        return Keyword::CHAR;
-    else if (keyword == "void")        return Keyword::VOID;
-    else if (keyword == "var")         return Keyword::VAR;
-    else if (keyword == "static")      return Keyword::STATIC;
-    else if (keyword == "field")       return Keyword::FIELD;
-    else if (keyword == "let")         return Keyword::LET;
-    else if (keyword == "do")          return Keyword::DO;
-    else if (keyword == "if")          return Keyword::IF;
-    else if (keyword == "else")        return Keyword::ELSE;
-    else if (keyword == "while")       return Keyword::WHILE;
-    else if (keyword == "return")      return Keyword::RETURN;
-    else if (keyword == "true")        return Keyword::TRUE;
-    else if (keyword == "false")       return Keyword::FALSE;
-    else if (keyword == "null")        return Keyword::NULL_KEYWORD;
-    else if (keyword == "this")        return Keyword::THIS;
-
+    if (string_to_keyword.find(keyword) != string_to_keyword.end()) {
+        return string_to_keyword[keyword];
+    }
     return Keyword::UNDEFINED;
 }
 
-// TODO: is there a better way of doing this...?
 std::string LexicalAnalyser::get_token_type() {
-    if (_curr_token_type == TokenType::KEYWORD) return "keyword";
-    else if (_curr_token_type == TokenType::SYMBOL) return "symbol";
-    else if (_curr_token_type == TokenType::IDENTIFIER) return "identifier";
-    else if (_curr_token_type == TokenType::INT_CONST) return "integerConstant";
-    else if (_curr_token_type == TokenType::STRING_CONST) return "stringConstant";
-    else if (_curr_token_type == TokenType::COMMENT) return "comment";
-
+    if (token_type_to_string.find(token_type()) != token_type_to_string.end()) {
+        return token_type_to_string[token_type()];
+    }
     return "undefined";
 }
 

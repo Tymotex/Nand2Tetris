@@ -34,6 +34,14 @@ public:
     // standard. For example: ,.;(){}*|&~<>= and so on.
     static std::unordered_set<char> symbol_lexicon;
 
+    // Maps a stringified keyword to a keyword enum.
+    // Eg. "class" to Keyword::CLASS.
+    static std::unordered_map<std::string, Keyword> string_to_keyword;
+
+    // Stringifies a TokenType enum value.
+    // Eg. TokenType::KEYWORD is mapped to "keyword".
+    static std::unordered_map<TokenType, std::string> token_type_to_string;
+
     static std::regex valid_identifier_pattern;
 
     /**
@@ -172,6 +180,8 @@ private:
      * forward as a side effect.
      */
     void try_read_identifier();
+
+    bool is_prefix_of_any_keyword(const std::string& token);
 };
 
 // TODO: how to do exception classes *properly*

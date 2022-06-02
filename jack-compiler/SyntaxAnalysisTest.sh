@@ -9,7 +9,9 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 RESET='\033[0m'
 
-echo "Running Jack Compiler on all test files..."
+echo "Building and running Jack Compiler on all test files..."
+cmake -S . -B build || exit 1
+cmake --build build || exit 1
 for each_project in $(find test-files -maxdepth 1 -mindepth 1); do
     if ! ./build/JackCompiler "$each_project" > /dev/null; then
         printf "${RED}Jack Compiler failed...${RESET}\n"
