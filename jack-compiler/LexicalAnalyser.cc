@@ -7,22 +7,40 @@
 #include <regex>
 #include <tuple>
 
-std::unordered_set<std::string> LexicalAnalyser::keyword_lexicon = {
-    // Class keywords:
-    "class", "field", "static",
-    // Data type keywords:
-    "int", "char", "boolean",
-    // Subroutine keywords:
-    "constructor", "function", "method", "void",
-    // Variable/value keywords:
-    "var", "true", "false", "null", "this",
-    // Statement keywords:
+std::unordered_set<std::string> LexicalAnalyser::general_keywords = {
+    "class", "var"
+};
+
+std::unordered_set<std::string> LexicalAnalyser::statement_keywords = {
     "let", "do", "if", "else", "while", "return"
 };
 
-std::unordered_set<char> LexicalAnalyser::symbol_lexicon = {
-    '{', '}', '(', ')', '[', ']', '.', ',', ';', '+', '-', '*', '/', '&', '|',
-    '<', '>', '=', '~'
+std::unordered_set<std::string> LexicalAnalyser::subroutine_declarers = {
+    "constructor", "function", "method"
+};
+
+std::unordered_set<std::string> LexicalAnalyser::data_types = {
+    "void", "int", "char", "boolean"
+};
+
+std::unordered_set<std::string> LexicalAnalyser::field_declarers = {
+    "field", "static"
+};
+
+std::unordered_set<std::string> LexicalAnalyser::builtin_literals = {
+    "true", "false", "null", "this"
+};
+
+std::unordered_set<std::string> LexicalAnalyser::general_symbols = {
+    "{", "}", "(", ")", "[", "]", ".", ",", ";"
+};
+
+std::unordered_set<std::string> LexicalAnalyser::binary_operators = {
+    "+", "-", "*", "/", "&", "|", "<", ">", "="
+};
+
+std::unordered_set<std::string> LexicalAnalyser::unary_operators = {
+    "-", "~"
 };
 
 std::unordered_map<std::string, Keyword> LexicalAnalyser::string_to_keyword = {
@@ -116,7 +134,7 @@ bool LexicalAnalyser::try_advance() {
             _curr_token = std::string{first_char};
             _curr_token_type = TokenType::SYMBOL;
         }
-    } else if (symbol_lexicon.find(first_char) != symbol_lexicon.end()) {
+    } else if (is_symbol(std::string{first_char})) {
         _curr_token = std::string{first_char};
         _curr_token_type = TokenType::SYMBOL;
     } else {
@@ -142,15 +160,22 @@ char LexicalAnalyser::symbol() {
 }
 
 std::string LexicalAnalyser::identifier() {
-    return get_str_value();
+    return get_token();
 }
 
 int LexicalAnalyser::get_int_value() {
     return stoi(_curr_token);
 }
 
-std::string LexicalAnalyser::get_str_value() {
+std::string LexicalAnalyser::get_token() {
     return _curr_token;
+}
+
+std::string LexicalAnalyser::peek() {
+    try_advance();
+    std::string token = _curr_token;
+    step_back();
+    return token;
 }
 
 void LexicalAnalyser::step_back() {
@@ -203,7 +228,7 @@ void LexicalAnalyser::show_tokeniser_debug_info() {
     std::cout << Colour::BLUE;
     switch (token_type()) {
         case TokenType::KEYWORD:
-            std::cout << "\tKeyword:    " << get_str_value() << "\n";
+            std::cout << "\tKeyword:    " << get_token() << "\n";
             break;
         case TokenType::IDENTIFIER:
             std::cout << "\tIdentifier: " << identifier() << "\n";
@@ -215,10 +240,10 @@ void LexicalAnalyser::show_tokeniser_debug_info() {
             std::cout << "\tInt const:  " << get_int_value() << "\n";
             break;
         case TokenType::STRING_CONST:
-            std::cout << "\tStr const:  " << get_str_value() << "\n";
+            std::cout << "\tStr const:  " << get_token() << "\n";
             break;
         case TokenType::COMMENT:
-            std::cout << "\tComment:    " << get_str_value() << "\n";
+            std::cout << "\tComment:    " << get_token() << "\n";
             break;
         default:
             break;
@@ -306,13 +331,10 @@ bool LexicalAnalyser::try_advance_past_comment(const bool& multiline) {
     return true;
 }
 
-bool LexicalAnalyser::is_prefix_of_any_keyword(const std::string& token) {
-    for (const std::string& keyword : keyword_lexicon) {
-        auto res = std::mismatch(token.begin(), token.end(), keyword.begin());
-        if (res.first == token.end()) {
+bool LexicalAnalyser::is_prefix_of_any_keyword(const std::string& token, std::unordered_set<std::string>& lexicon) {
+    for (const std::string& keyword : lexicon)
+        if (std::mismatch(token.begin(), token.end(), keyword.begin()).first == token.end()) 
             return true;
-        }
-    }
     return false;
 }
 
@@ -323,10 +345,15 @@ bool LexicalAnalyser::try_read_keyword() {
     char c = _jack_in.get();
     token.push_back(c);
 
-    while (is_prefix_of_any_keyword(token)) {
+    while (is_prefix_of_any_keyword(token, general_keywords) ||
+           is_prefix_of_any_keyword(token, statement_keywords) ||
+           is_prefix_of_any_keyword(token, subroutine_declarers) ||
+           is_prefix_of_any_keyword(token, data_types) ||
+           is_prefix_of_any_keyword(token, field_declarers) ||
+           is_prefix_of_any_keyword(token, builtin_literals)) {
         if (_jack_in.eof())
             throw JackSyntaxError("Unexpected EOF while reading Jack keyword.");
-        if (keyword_lexicon.find(token) != keyword_lexicon.end()) {
+        if (is_keyword(token)) {
             // Matched a keyword, but there mustn't be any alphanumeric
             // or underscore character immediately after. This is to prevent
             // a token like "classd" from being interpreted as "class".
@@ -380,6 +407,21 @@ void LexicalAnalyser::try_read_identifier() {
         _curr_token = token;
         _curr_token_type = TokenType::IDENTIFIER;
     }
+}
+
+bool LexicalAnalyser::is_keyword(const std::string& token) {
+    return (general_keywords.find(token) != general_keywords.end()) ||
+        (statement_keywords.find(token) != statement_keywords.end()) || 
+        (subroutine_declarers.find(token) != subroutine_declarers.end()) || 
+        (data_types.find(token) != data_types.end()) || 
+        (field_declarers.find(token) != field_declarers.end()) || 
+        (builtin_literals.find(token) != builtin_literals.end());
+}
+
+bool LexicalAnalyser::is_symbol(const std::string& token) {
+    return (general_symbols.find(token) != general_symbols.end()) || 
+        (binary_operators.find(token) != binary_operators.end()) || 
+        (unary_operators.find(token) != unary_operators.end());
 }
 
 Keyword LexicalAnalyser::get_keyword(const std::string& keyword) {

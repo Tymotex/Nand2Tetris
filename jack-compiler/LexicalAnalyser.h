@@ -25,14 +25,19 @@ enum class Keyword {
 class LexicalAnalyser {
 public:
     // Contains all the keywords defined by the Jack language standard.
-    // Eg. type: {int, char, boolean},
-    //     subroutine_declaration: {function, method, constructor},
-    //     ... and so on
-    static std::unordered_set<std::string> keyword_lexicon;
+    // Eg. class, method, function, constructor, var, let, etc.
+    static std::unordered_set<std::string> general_keywords;
+    static std::unordered_set<std::string> statement_keywords;
+    static std::unordered_set<std::string> subroutine_declarers;
+    static std::unordered_set<std::string> data_types;
+    static std::unordered_set<std::string> field_declarers;
+    static std::unordered_set<std::string> builtin_literals;
 
-    // Contains all the single-character symbols defined by the Jack language
-    // standard. For example: ,.;(){}*|&~<>= and so on.
-    static std::unordered_set<char> symbol_lexicon;
+    // Contains all the symbols defined by the Jack language standard.
+    // For example: ,.;(){}*|&~<>= and so on.
+    static std::unordered_set<std::string> general_symbols;
+    static std::unordered_set<std::string> binary_operators;
+    static std::unordered_set<std::string> unary_operators;
 
     // Maps a stringified keyword to a keyword enum.
     // Eg. "class" to Keyword::CLASS.
@@ -94,7 +99,12 @@ public:
      * Returns the string value of the current token. Assumes that this method
      * is invoked only when the current token is of the STRING_CONST type.
      */
-    std::string get_str_value();
+    std::string get_token();
+
+    /**
+     * Look ahead at the next token in the stream, if it exists.
+     */
+    std::string peek();
 
     /**
      * Seeks one byte backwards in the input stream.
@@ -121,9 +131,22 @@ public:
      */
     bool try_advance_until_class_declaration();
 
-    Keyword get_keyword(const std::string& keyword);
+    /**
+     * Determines whether or not the given token is a keyword.
+     */
+    bool is_keyword(const std::string& token);
 
+    /**
+     * Determines whether or not the given token is a symbol.
+     */
+    bool is_symbol(const std::string& token);
+
+    // Returns the enum value for the given keyword string.
+    Keyword get_keyword(const std::string& keyword);
+    
+    // Returns the stringified token type.
     std::string get_token_type();
+
 private:
     /**
      * Jack character input stream.
@@ -181,10 +204,11 @@ private:
      */
     void try_read_identifier();
 
-    bool is_prefix_of_any_keyword(const std::string& token);
+    bool is_prefix_of_any_keyword(const std::string& token, std::unordered_set<std::string>& lexicon);
 };
 
 // TODO: how to do exception classes *properly*
+// TODO: attach line numbers to all parse errors (and syntax errors). The error classes should be passed this extra info.
 class JackSyntaxError : public std::exception {
 public:
     static const size_t MAX_MSG_LEN = 64;

@@ -4,11 +4,6 @@
 #include <iostream>
 #include <fstream>
 #include <memory>
-#include <unordered_set>
-
-// TODO: Refactor keyword_lexicon
-// TODO: should make try_advance throw error on *unexpected* EOF.
-// TODO: attach line numbers to all parse errors (and syntax errors). The error classes should be passed this extra info.
 
 Parser::Parser(std::shared_ptr<LexicalAnalyser> lexical_analyser, const std::string& output_stream)
     : _lexical_analyser(lexical_analyser),
@@ -19,36 +14,43 @@ Parser::~Parser() {
     _xml_parse_tree->close();
 }
 
+// Class declarations are of the form:
+//     class className { body }
 void Parser::compile_class() {
     _xml_parse_tree->open_xml("class");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value()); // TODO: this line gets duplicated a lot.
-    if (!expect_token_type(TokenType::IDENTIFIER))
-        throw JackParserError("Expected class name.");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
-    if (!expect_token("{"))
-        throw JackParserError("Expected class scope starter, {.");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+
+    // class
+    xml_capture_token();
+
+    // className
+    expect_token_type(TokenType::IDENTIFIER, "Expected class name.");
+
+    // { body }
+    expect_token("{", "Expected class scope starter, {.");
     compile_class_body();
-    _xml_parse_tree->close_xml();  // TODO: this line is also duplicated many times.
+    expect_token("}", "Expected class scope terminator, {.");
+
+    _xml_parse_tree->close_xml();
 }
 
-// TODO: probably need to refactor keyword_lexicon.
+// Class bodies are of the form:
+//     {  classVarDec* subroutineDec* }
 void Parser::compile_class_body() {
     // We expect an arbitrary stream of either subroutine declarations or field
     // declarations.
     std::string curr_token;
     while (_lexical_analyser->try_advance()) {
-        curr_token = _lexical_analyser->get_str_value();
+        curr_token = _lexical_analyser->get_token();
         if (curr_token == "}") {
             // Reached the end of the class implementation.
-            _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+            _lexical_analyser->step_back();
             break;
         }
 
-        if (curr_token == "constructor" || curr_token == "function" || curr_token == "method") {
-            compile_subroutine();
-        } else if (curr_token == "field" || curr_token == "static") {
+        if (curr_token == "field" || curr_token == "static") {
             compile_class_field_declaration();
+        } else if (curr_token == "constructor" || curr_token == "function" || curr_token == "method") {
+            compile_subroutine();
         } else {
             throw JackParserError("Unexpected token in class body. Expected "
                                   "subroutine or field declaration");
@@ -56,70 +58,65 @@ void Parser::compile_class_body() {
     }
 }
 
-// TODO: Document each of these methods with the standard form, for reference
 // Class field declarations can be of form:
 //     static|field type varName;
 //     static|field type varName1, varName2, ...;
 void Parser::compile_class_field_declaration() {
     _xml_parse_tree->open_xml("classVarDec");
+
     // static|field
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    xml_capture_token();
 
     // type
-    if (!expect_data_type())
-        throw JackParserError("Expected a data type for field declaration.");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    expect_data_type("Expected a data type for field declaration.");
 
     // varName
-    if (!expect_token_type(TokenType::IDENTIFIER))
-        throw JackParserError("Expected an identifier for field declaration.");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    expect_token_type(TokenType::IDENTIFIER, "Expected an identifier for field declaration.");
 
     // Optional trailing variable list: ', varName2, varName3, ...'
-    while (_lexical_analyser->try_advance() && _lexical_analyser->get_str_value() == ",") {
-        _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
-        if (!expect_token_type(TokenType::IDENTIFIER))
-            throw JackParserError("Expected an identifier for field declaration.");
-        _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
-    }
-    _lexical_analyser->step_back();
+    try_compile_trailing_variable_list();
     
     // ;
-    if (!expect_token(";"))
-        throw JackParserError("Unterminated field declaration.");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    expect_token(";", "Unterminated field declaration.");
     _xml_parse_tree->close_xml();
 }
 
+// Subroutine declarations are of the form:
+//     constructor|function|method type subroutineName (parameterList) { body }
 void Parser::compile_subroutine() {
     _xml_parse_tree->open_xml("subroutineDec");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
 
-    if (!expect_data_type())
-        throw JackParserError("Expected subroutine return type.");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
-    if (!expect_token_type(TokenType::IDENTIFIER))
-        throw JackParserError("Expected subroutine name.");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    // constructor|function|method
+    xml_capture_token();
 
-    if (!expect_token("("))
-        throw JackParserError("Expected start of parameter list.");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value()); // TODO: document that this inserts (
+    // type
+    expect_data_type("Expected subroutine return type.");
+
+    // subroutineName
+    expect_token_type(TokenType::IDENTIFIER, "Expected subroutine name.");
+
+    // (parameterList)
+    expect_token("(", "Expected start of parameter list.");
     compile_parameter_list();
+    expect_token(")", "Expected end of parameter list.");
 
+    // { body }
     compile_subroutine_body();
     _xml_parse_tree->close_xml();
 }
 
+// Parameter lists are of the form:
+//     (type identifier)
+//     (type identifier1, type identifier2, ...)
 void Parser::compile_parameter_list() {
     _xml_parse_tree->open_xml("parameterList");
     std::string curr_token = "";
     int param_num = 1;
     while (_lexical_analyser->try_advance()) {
-        curr_token = _lexical_analyser->get_str_value();
+        curr_token = _lexical_analyser->get_token();
         if (curr_token == ")") {
+            _lexical_analyser->step_back();
             _xml_parse_tree->close_xml();
-            _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
             break;
         }
 
@@ -127,44 +124,35 @@ void Parser::compile_parameter_list() {
         _lexical_analyser->step_back();
 
         // For more than one parameter, we expect a comma.
-        if (param_num > 1) {
-            if (!expect_token(","))
-                throw JackParserError("Expected comma in parameter list.");
-            else _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
-        } 
+        if (param_num > 1)
+            expect_token(",", "Expected comma in parameter list.");
 
         // Parameter lists must always be of form: `type identifier` .
-        if (!expect_data_type()) {
-            // TODO: this is such a dumb way of forming a c-str. Alternatives?
-            std::stringstream err_msg;
-            err_msg << "Expected data type for parameter " << param_num;
-            throw JackParserError(err_msg.str().c_str());
-        }
-        _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
-        if (!expect_token_type(TokenType::IDENTIFIER)) {
-            // TODO: this is such a dumb way of forming a c-str. Alternatives?
-            std::stringstream err_msg;
-            err_msg << "Expected identifier for parameter " << param_num;
-            throw JackParserError(err_msg.str().c_str());
-        }
-        _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+        expect_data_type("Expected data type for parameter " + param_num);
+
+        expect_token_type(TokenType::IDENTIFIER, "Expected identifier for parameter " + param_num);
+
         ++param_num;
     }
 }
 
+// Subroutine bodies are of the form:
+//     { varDeclarations* statement* }
 void Parser::compile_subroutine_body() {
     _xml_parse_tree->open_xml("subroutineBody");
 
-    if (!expect_token("{"))
-        throw JackParserError("Expected start of subroutine scope.");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    // { varDeclarations*
+    expect_token("{", "Expected start of subroutine scope.");
 
-    while (_lexical_analyser->try_advance() && _lexical_analyser->get_str_value() == "var") {
+    while (_lexical_analyser->try_advance() && _lexical_analyser->get_token() == "var") {
         compile_variable_declaration();
     }
     _lexical_analyser->step_back();
 
+    // statement* }
     compile_statements();
+    expect_token("}", "Expected end of subroutine scope.");
+
     _xml_parse_tree->close_xml();
 }
 
@@ -174,10 +162,10 @@ void Parser::compile_statements() {
     _xml_parse_tree->open_xml("statements");
     std::string curr_token;
     while (_lexical_analyser->try_advance()) {
-        curr_token = _lexical_analyser->get_str_value();
+        curr_token = _lexical_analyser->get_token();
         if (curr_token == "}") {
+            _lexical_analyser->step_back();
             _xml_parse_tree->close_xml();
-            _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value()); // TODO: this is the final }
             break;
         }
         
@@ -200,32 +188,19 @@ void Parser::compile_variable_declaration() {
     _xml_parse_tree->open_xml("varDec");
     
     // var
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    xml_capture_token();
 
     // type
-    if (!expect_data_type())
-        throw JackParserError("Expected data type for variable declaration.");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    expect_data_type("Expected data type for variable declaration.");
 
     // varName
-    if (!expect_token_type(TokenType::IDENTIFIER))
-        throw JackParserError("Expected identifier for variable declaration.");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    expect_token_type(TokenType::IDENTIFIER, "Expected identifier for variable declaration.");
 
     // Optional trailing variable list: ', varName2, varName3, ...'
-    // TODO: this is duplicated with the classVarDec compile implementation.
-    while (_lexical_analyser->try_advance() && _lexical_analyser->get_str_value() == ",") {
-        _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
-        if (!expect_token_type(TokenType::IDENTIFIER))
-            throw JackParserError("Expected an identifier for field declaration.");
-        _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
-    }
-    _lexical_analyser->step_back();
+    try_compile_trailing_variable_list();
 
     // ;
-    if (!expect_token(";"))
-        throw JackParserError("Unterminated variable declaration statement");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    expect_token(";", "Unterminated variable declaration statement");
     _xml_parse_tree->close_xml();
 }
 
@@ -236,36 +211,22 @@ void Parser::compile_let() {
     _xml_parse_tree->open_xml("letStatement");
     
     // let
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    xml_capture_token();
     
     // varName
-    if (!expect_token_type(TokenType::IDENTIFIER))
-        throw JackParserError("Expected variable identifier for let statement");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    expect_token_type(TokenType::IDENTIFIER, "Expected variable identifier for let statement");
 
     // Optional: subscript operator, '[expression]'
-    if (_lexical_analyser->try_advance() && _lexical_analyser->get_str_value() == "[") {
-        _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
-        compile_expression(0);
-        if (!expect_token("]"))
-            throw JackParserError("Expected subscript operator terminator, ].");
-        _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
-    } else {
-        _lexical_analyser->step_back();
-    }
+    try_compile_subscript();
     
     // =
-    if (!expect_token("="))
-        throw JackParserError("Expected assignment operator for let statement");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    expect_token("=", "Expected assignment operator for let statement");
 
     // expression
     compile_expression(0);
     
     // ;
-    if (!expect_token(";"))
-        throw JackParserError("Unterminated let statement.");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    expect_token(";", "Unterminated let statement.");
 
     _xml_parse_tree->close_xml();
 }
@@ -277,31 +238,25 @@ void Parser::compile_if() {
     _xml_parse_tree->open_xml("ifStatement");
     
     // if
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    xml_capture_token();
     
     // (expression)
-    if (!expect_token("("))
-        throw JackParserError("Expected start of condition for if-statement.");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    expect_token("(", "Expected start of condition for if-statement.");
     compile_expression(0);
-    if (!expect_token(")"))
-        throw JackParserError("Expected end of condition for if-statement.");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    expect_token(")", "Expected end of condition for if-statement.");
 
     // { statements }
-    if (!expect_token("{"))
-        throw JackParserError("Expected start of if-statement scope.");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    expect_token("{", "Expected start of if-statement scope.");
     compile_statements();
+    expect_token("}", "Expected end of if-statement scope.");
 
     // Optional: else { statements }
     _lexical_analyser->try_advance();
-    if (_lexical_analyser->get_str_value() == "else") {
-        _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
-        if (!expect_token("{"))
-            throw JackParserError("Expected start of else-statement scope.");
-        _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    if (_lexical_analyser->get_token() == "else") {
+        xml_capture_token();
+        expect_token("{", "Expected start of else-statement scope.");
         compile_statements();
+        expect_token("}", "Expected end of if-statement scope.");
     } else {
         _lexical_analyser->step_back();
     }
@@ -315,49 +270,48 @@ void Parser::compile_while() {
     _xml_parse_tree->open_xml("whileStatement");
     
     // while
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    xml_capture_token();
 
     // (expression)
-    if (!expect_token("("))
-        throw JackParserError("Expected start of condition for while-loop.");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    expect_token("(", "Expected start of condition for while-loop.");
     compile_expression(0);
-    if (!expect_token(")"))
-        throw JackParserError("Expected end of condition for while-loop.");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    expect_token(")", "Expected end of condition for while-loop.");
 
     // { statements }
-    if (!expect_token("{"))
-        throw JackParserError("Expected start of if-statement scope.");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    expect_token("{", "Expected start of while-loop scope.");
     compile_statements();
+    expect_token("}", "Expected end of while-loop scope.");
 
     _xml_parse_tree->close_xml();
 }
 
+// Do statements are of the form:
+//     do subroutineInvocation
 void Parser::compile_do() {
     // In Jack, a subroutine call is only ever present in `do` statements and
     // in expressions. Here, we are reusing the `compile_expression` algorithm
     // to compile direct subroutine calls of the form `do subroutine_call()`.
     _xml_parse_tree->open_xml("doStatement");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    xml_capture_token();
     
-    if (!expect_token_type(TokenType::IDENTIFIER))
-        throw JackParserError("Expected identifier for subroutine invocation in do statement.");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value()); // subroutineName.
+    expect_token_type(TokenType::IDENTIFIER, "Expected identifier for subroutine invocation in do statement.");
     compile_subroutine_invocation();
 
-    if (!expect_token(";"))
-        throw JackParserError("Unterminated do statement.");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    expect_token(";", "Unterminated do statement.");
     _xml_parse_tree->close_xml();
 }
 
+// Return statements are of the form:
+//     return;
+//     return expression;
 void Parser::compile_return() {
     _xml_parse_tree->open_xml("returnStatement");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
 
-    if (_lexical_analyser->try_advance() && _lexical_analyser->get_str_value() != ";") {
+    // return
+    xml_capture_token();
+
+    // Optional: expression
+    if (_lexical_analyser->try_advance() && _lexical_analyser->get_token() != ";") {
         // There is a return value. We now resolve the expression.
         _lexical_analyser->step_back();
         compile_expression(0);
@@ -365,9 +319,9 @@ void Parser::compile_return() {
         _lexical_analyser->step_back();
     }
 
-    if (!expect_token(";"))
-        throw JackParserError("Unterminated return statement.");
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    // ;
+    expect_token(";", "Unterminated return statement.");
+
     _xml_parse_tree->close_xml();
 }
 
@@ -482,22 +436,22 @@ void Parser::compile_expression(int nest_level) {
     compile_term(nest_level);
 
     std::string curr_token;
-    std::unordered_set<std::string> binary_operators = {
-        "+", "-", "*", "/", "&", "|", "<", ">", "="
-    };
+
 
     while (_lexical_analyser->try_advance()) {
-        curr_token = _lexical_analyser->get_str_value();
+        curr_token = _lexical_analyser->get_token();
 
         // We expect the next token to be a binary operator, otherwise we stop
         // compiling the expression.
-        if (binary_operators.find(curr_token) != binary_operators.end()) {
-            _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+        if (LexicalAnalyser::binary_operators.find(curr_token) != LexicalAnalyser::binary_operators.end()) {
+            xml_capture_token();
             compile_term(nest_level);
-        // TODO: We need to conditionally stop at ) based on whether we are in a nested expression or not...
         } else if (curr_token == ")" && nest_level > 0) {
+            // Note: the nest_level is used to indicate whether we are in a 
+            //       nested expression or not. If we are then we will 'consume'
+            //       the ) character.
             _xml_parse_tree->close_xml();
-            _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+            xml_capture_token();
             break;
         } else {
             // Take a step back since we looked ahead.
@@ -511,64 +465,40 @@ void Parser::compile_expression(int nest_level) {
 void Parser::compile_term(int nest_level) {
     _xml_parse_tree->open_xml("term");
     _lexical_analyser->try_advance();
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+    xml_capture_token();
 
-    std::string curr_token = _lexical_analyser->get_str_value();
+    std::string curr_token = _lexical_analyser->get_token();
     std::string peeked_token;
     TokenType token_type = _lexical_analyser->token_type();
 
-    // TODO: these should be moved.
-    std::unordered_set<std::string> unary_operators = {
-        "-", "~"
-    };
-    std::unordered_set<std::string> builtin_literals = {
-        "true", "false", "null", "this"
-    };
 
     switch (token_type) {
         case TokenType::KEYWORD:
-            if (builtin_literals.find(curr_token) == builtin_literals.end()) {
-                // TODO: this is dumb. fix
-                std::stringstream err_msg;
-                err_msg << "Invalid keyword for term '" << curr_token << "'.";
-                throw JackParserError(err_msg.str().c_str());
-            }
+            if (LexicalAnalyser::builtin_literals.find(curr_token) == LexicalAnalyser::builtin_literals.end())
+                throw JackParserError("Invalid keyword for term '" + curr_token + "'.");
             break;
         case TokenType::IDENTIFIER:
-            // TODO: support array access: `varName[expr]`
             // We need to look ahead one character to ascertain whether this
             // term is a subroutine call or a reference to a variable.
-            // TODO: this peek/look-ahead operation is common. Maybe make a method out of it in LexicalAnalyser.
-            _lexical_analyser->try_advance();
-            peeked_token = _lexical_analyser->get_str_value();
-            _lexical_analyser->step_back();
+            peeked_token = _lexical_analyser->peek();
             if (peeked_token == "(" || peeked_token == ".") {
                 // Compile subroutine call.
                 compile_subroutine_invocation();
             } else if (peeked_token == "[") {
-                // TODO: this is duplicated from compile_let()
                 // Compile subscript operator on variable.
-                _lexical_analyser->try_advance(); // Re-do step forward... TODO: this is janky.
-                _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
-                compile_expression(0);
-                if (!expect_token("]"))
-                    throw JackParserError("Expected subscript operator terminator, ].");
-                _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+                try_compile_subscript();
             }
             break;
         case TokenType::SYMBOL:
             if (curr_token == "(") {
                 // Compile a sub-expression.
                 compile_expression(nest_level + 1);
-            } else if (unary_operators.find(curr_token) != unary_operators.end()) {
+            } else if (LexicalAnalyser::unary_operators.find(curr_token) != LexicalAnalyser::unary_operators.end()) {
                 // When a unary operator is encountered, we expect a term to 
                 // immediately follow.
                 compile_term(nest_level);
             } else {
-                // TODO: this is dumb. fix
-                std::stringstream err_msg;
-                err_msg << "Unexpected expression symbol '" << curr_token << "'.";
-                throw JackParserError(err_msg.str().c_str());
+                throw JackParserError("Unexpected expression symbol '" + curr_token + "'.");
             }
             break;
         default:
@@ -579,8 +509,8 @@ void Parser::compile_term(int nest_level) {
 
 void Parser::compile_subroutine_invocation() {
     _lexical_analyser->try_advance();
-    std::string token = _lexical_analyser->get_str_value();
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value()); // ( or .
+    std::string token = _lexical_analyser->get_token();
+    xml_capture_token(); // ( or .
 
     if (token == "(") {
         compile_expression_list();
@@ -588,9 +518,7 @@ void Parser::compile_subroutine_invocation() {
         // Follow the '.' chain down to the subroutine invocation.
         // Eg. if the token stream consisted of `MyClass.myMethod(...)`, then
         //     the recursive call would process `myMethod(...)`.
-        if (!expect_token_type(TokenType::IDENTIFIER))
-            throw JackParserError("Expected an identifier in subroutine invocation.");
-        _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+        expect_token_type(TokenType::IDENTIFIER, "Expected an identifier in subroutine invocation.");
         compile_subroutine_invocation();
     } else {
         throw JackParserError("Invalid subroutine invocation.");
@@ -603,12 +531,12 @@ int Parser::compile_expression_list() {
 
     std::string curr_token;
     while (_lexical_analyser->try_advance()) {
-        curr_token = _lexical_analyser->get_str_value();
+        curr_token = _lexical_analyser->get_token();
 
         // End expression list compilation when ) is reached.
         if (curr_token == ")") {
             _xml_parse_tree->close_xml();
-            _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+            xml_capture_token();
             break;
         }
         
@@ -618,7 +546,7 @@ int Parser::compile_expression_list() {
             _lexical_analyser->step_back();
             compile_expression(0);
         } else if (curr_token == ",") {
-            _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_str_value());
+            xml_capture_token();
             compile_expression(0);
         } else {
             throw JackParserError("Expected comma between expressions.");
@@ -630,32 +558,69 @@ int Parser::compile_expression_list() {
     return num_expressions;
 }
 
-bool Parser::expect_token_type(TokenType token_type) {
-    _lexical_analyser->try_advance();
-    return _lexical_analyser->token_type() == token_type;
+bool Parser::try_compile_subscript() {
+    if (_lexical_analyser->try_advance() && _lexical_analyser->get_token() == "[") {
+        xml_capture_token();
+        compile_expression(0);
+        expect_token("]", "Expected subscript operator terminator, ].");
+        return true;
+    } else {
+        _lexical_analyser->step_back();
+        return false;
+    }
 }
 
-bool Parser::expect_token(const std::string& token) {
+// Trailing variables lists are of the form: `, var1, var2, ...`
+bool Parser::try_compile_trailing_variable_list() {
+    bool compiled = false;
+    while (_lexical_analyser->try_advance() && _lexical_analyser->get_token() == ",") {
+        xml_capture_token();
+        expect_token_type(TokenType::IDENTIFIER, "Expected an identifier for field declaration.");
+        compiled = true;
+    }
+    _lexical_analyser->step_back();
+    return compiled;
+}
+
+void Parser::expect_token_type(TokenType token_type, const std::string& err_message) {
     _lexical_analyser->try_advance();
-    std::string curr_token = _lexical_analyser->get_str_value();
-    return curr_token == token;
+    if (_lexical_analyser->token_type() != token_type) {
+        throw JackParserError(err_message.c_str());
+    }
+    xml_capture_token();
+}
+
+void Parser::expect_token(const std::string& token, const std::string& err_message) {
+    _lexical_analyser->try_advance();
+    if (_lexical_analyser->get_token() != token) {
+        throw JackParserError(err_message.c_str());
+    }
+    xml_capture_token();
 }
 
 // A valid data type is either a built-in type or an identifier (it's not the
 // responsibility of this function to determine whether it actually references
 // a valid class (TODO: yet?)).
-bool Parser::expect_data_type() {
-    std::unordered_set<std::string> data_types = {
-        "void", "int", "char", "boolean"
-    };
+void Parser::expect_data_type(const std::string& err_message) {
     _lexical_analyser->try_advance();
-    std::string curr_token = _lexical_analyser->get_str_value();
-    return (data_types.find(curr_token) != data_types.end()) ||
-        _lexical_analyser->token_type() == TokenType::IDENTIFIER;
+    std::string token = _lexical_analyser->get_token();
+    if ((LexicalAnalyser::data_types.find(token) == LexicalAnalyser::data_types.end()) &&
+            _lexical_analyser->token_type() != TokenType::IDENTIFIER) {
+        throw JackParserError(err_message.c_str());
+    }
+    xml_capture_token();
+}
+
+void Parser::xml_capture_token() {
+    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_token());
 }
 
 JackParserError::JackParserError(char const* const message) throw()
     : _message(message) {
+}
+
+JackParserError::JackParserError(const std::string& message) throw()
+    : _message(message.c_str()) {
 }
 
 char const* JackParserError::what() const throw() {

@@ -109,6 +109,17 @@ public:
      */
     int compile_expression_list();
 
+    /**
+     * Attempts to compile an array access. If it fails to compile, then return
+     * false.
+     */
+    bool try_compile_subscript();
+
+    /**
+     * Attempts to compile a comma-separate list of variables. If it fails, then
+     * return false.
+     */
+    bool try_compile_trailing_variable_list();
 private:
     /**
      * Handle on the token stream producer, ie. the Jack lexical analyser.
@@ -122,19 +133,22 @@ private:
     std::unique_ptr<XMLOutput> _xml_parse_tree;
 
     /**
-     * Returns true if the current token is of a certain type, equal to a 
-     * certain string, or is a certain keyword, etc.
+     * Throws a JackParseException if the current token is of a certain type, 
+     * equal to a certain string, or is a certain keyword, etc.
      * Invoking these functions will always advance the token stream cursor
-     * forward one step.
+     * forward one step AND capture the token as XML.
      */
-    bool expect_token_type(TokenType token_type);
-    bool expect_token(const std::string& token);
+    void expect_token_type(TokenType token_type, const std::string& err_message);
+    void expect_token(const std::string& token, const std::string& err_message);
+
     // Expects one of: primitive types, built-in classes or user-defined
     // classes.
-    bool expect_data_type();   
+    void expect_data_type(const std::string& err_message);   
 
-    // TODO: remove?
-    // bool expect_keyword(Keyword keyword);
+    /**
+     * Dumps the current token to the XML stream.
+     */
+    void xml_capture_token();
 };
 
 class JackParserError : public std::exception {
@@ -142,6 +156,8 @@ public:
     static const size_t MAX_MSG_LEN = 64;
 
     JackParserError(char const* const message) throw();
+    JackParserError(const std::string& message) throw();
+
     virtual char const* what() const throw();
 private:
     char const* _message;
