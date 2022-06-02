@@ -1,7 +1,7 @@
 #include "utils/Colouriser.h"
 #include "utils/JackSourceFileUtilities.h"
 #include "LexicalAnalyser.h"
-#include "Parser.h"
+#include "CompilationEngine.h"
 #include <iostream>
 #include <filesystem>
 #include <regex>
@@ -68,7 +68,7 @@ void translate_jack_file_to_vm(const std::string& path) {
 
     std::shared_ptr<LexicalAnalyser> lexical_analyser =
         std::make_shared<LexicalAnalyser>(path);
-    Parser parser(lexical_analyser, output_file_path);
+    CompilationEngine parser(lexical_analyser, output_file_path);
     
     lexical_analyser->write_xml_tokens(token_xml_output_path, false);
 

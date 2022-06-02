@@ -1,23 +1,23 @@
 #include "LexicalAnalyser.h"
-#include "Parser.h"
+#include "CompilationEngine.h"
 #include "utils/XMLOutput.h"
 #include "utils/Colouriser.h"
 #include <iostream>
 #include <fstream>
 #include <memory>
 
-Parser::Parser(std::shared_ptr<LexicalAnalyser> lexical_analyser, const std::string& output_stream)
+CompilationEngine::CompilationEngine(std::shared_ptr<LexicalAnalyser> lexical_analyser, const std::string& output_stream)
     : _lexical_analyser(lexical_analyser),
       _xml_parse_tree(std::make_unique<XMLOutput>(output_stream, true, false)) {
 }
 
-Parser::~Parser() {
+CompilationEngine::~CompilationEngine() {
     _xml_parse_tree->close();
 }
 
 // Class declarations are of the form:
 //     class className { body }
-void Parser::compile_class() {
+void CompilationEngine::compile_class() {
     _xml_parse_tree->open_xml("class");
 
     // class
@@ -36,7 +36,7 @@ void Parser::compile_class() {
 
 // Class bodies are of the form:
 //     {  classVarDec* subroutineDec* }
-void Parser::compile_class_body() {
+void CompilationEngine::compile_class_body() {
     // We expect an arbitrary stream of either subroutine declarations or field
     // declarations.
     std::string curr_token;
@@ -53,7 +53,7 @@ void Parser::compile_class_body() {
         } else if (curr_token == "constructor" || curr_token == "function" || curr_token == "method") {
             compile_subroutine();
         } else {
-            throw JackParserError(*_lexical_analyser, 
+            throw JackCompilationEngineError(*_lexical_analyser, 
                 "Unexpected token in class body. Expected subroutine or field declaration.");
         }
     }
@@ -62,7 +62,7 @@ void Parser::compile_class_body() {
 // Class field declarations can be of form:
 //     static|field type varName;
 //     static|field type varName1, varName2, ...;
-void Parser::compile_class_field_declaration() {
+void CompilationEngine::compile_class_field_declaration() {
     _xml_parse_tree->open_xml("classVarDec");
 
     // static|field
@@ -84,7 +84,7 @@ void Parser::compile_class_field_declaration() {
 
 // Subroutine declarations are of the form:
 //     constructor|function|method type subroutineName (parameterList) { body }
-void Parser::compile_subroutine() {
+void CompilationEngine::compile_subroutine() {
     _xml_parse_tree->open_xml("subroutineDec");
 
     // constructor|function|method
@@ -109,7 +109,7 @@ void Parser::compile_subroutine() {
 // Parameter lists are of the form:
 //     (type identifier)
 //     (type identifier1, type identifier2, ...)
-void Parser::compile_parameter_list() {
+void CompilationEngine::compile_parameter_list() {
     _xml_parse_tree->open_xml("parameterList");
     std::string curr_token = "";
     int param_num = 1;
@@ -139,7 +139,7 @@ void Parser::compile_parameter_list() {
 
 // Subroutine bodies are of the form:
 //     { varDeclarations* statement* }
-void Parser::compile_subroutine_body() {
+void CompilationEngine::compile_subroutine_body() {
     _xml_parse_tree->open_xml("subroutineBody");
 
     // { varDeclarations*
@@ -159,7 +159,7 @@ void Parser::compile_subroutine_body() {
 
 // Note: `compile_statements` will terminate when the closing brace character is
 //       encountered.
-void Parser::compile_statements() {
+void CompilationEngine::compile_statements() {
     _xml_parse_tree->open_xml("statements");
     std::string curr_token;
     while (_lexical_analyser->try_advance()) {
@@ -176,16 +176,16 @@ void Parser::compile_statements() {
         else if (curr_token == "while")  compile_while();
         else if (curr_token == "return") compile_return();
         else if (curr_token == "var")
-            throw JackParserError(*_lexical_analyser, "Variable declarations must precede statements.");
+            throw JackCompilationEngineError(*_lexical_analyser, "Variable declarations must precede statements.");
         else
-            throw JackParserError(*_lexical_analyser, "Start of unexpected statement.");
+            throw JackCompilationEngineError(*_lexical_analyser, "Start of unexpected statement.");
     }
 }
 
 // Variable declarations appearing in subroutine contexts can be of form:
 //     var type varName;
 //     var type varName1, varName2, ...;
-void Parser::compile_variable_declaration() {
+void CompilationEngine::compile_variable_declaration() {
     _xml_parse_tree->open_xml("varDec");
     
     // var
@@ -208,7 +208,7 @@ void Parser::compile_variable_declaration() {
 // Let statements can be of form:
 //     let varName = expression;
 //     let varName[expression] = expression;
-void Parser::compile_let() {
+void CompilationEngine::compile_let() {
     _xml_parse_tree->open_xml("letStatement");
     
     // let
@@ -235,7 +235,7 @@ void Parser::compile_let() {
 // If-statements can be of the form:
 //     if (expression) { statements }
 //     if (expression) { statements } else { statements }
-void Parser::compile_if() {
+void CompilationEngine::compile_if() {
     _xml_parse_tree->open_xml("ifStatement");
     
     // if
@@ -267,7 +267,7 @@ void Parser::compile_if() {
 
 // While statements can be of form:
 //     while (expression) { statements }
-void Parser::compile_while() {
+void CompilationEngine::compile_while() {
     _xml_parse_tree->open_xml("whileStatement");
     
     // while
@@ -288,7 +288,7 @@ void Parser::compile_while() {
 
 // Do statements are of the form:
 //     do subroutineInvocation
-void Parser::compile_do() {
+void CompilationEngine::compile_do() {
     // In Jack, a subroutine call is only ever present in `do` statements and
     // in expressions. Here, we are reusing the `compile_expression` algorithm
     // to compile direct subroutine calls of the form `do subroutine_call()`.
@@ -305,7 +305,7 @@ void Parser::compile_do() {
 // Return statements are of the form:
 //     return;
 //     return expression;
-void Parser::compile_return() {
+void CompilationEngine::compile_return() {
     _xml_parse_tree->open_xml("returnStatement");
 
     // return
@@ -429,7 +429,7 @@ void Parser::compile_return() {
 //               <symbol> ) </symbol>
 //             </term>
 //         </expression>
-void Parser::compile_expression(int nest_level) {
+void CompilationEngine::compile_expression(int nest_level) {
     _xml_parse_tree->open_xml("expression");
 
     // Process the first term, then handle subsequent operators and terms.
@@ -463,7 +463,7 @@ void Parser::compile_expression(int nest_level) {
     }
 }
 
-void Parser::compile_term(int nest_level) {
+void CompilationEngine::compile_term(int nest_level) {
     _xml_parse_tree->open_xml("term");
     _lexical_analyser->try_advance();
     xml_capture_token();
@@ -476,7 +476,7 @@ void Parser::compile_term(int nest_level) {
     switch (token_type) {
         case TokenType::KEYWORD:
             if (LexicalAnalyser::builtin_literals.find(curr_token) == LexicalAnalyser::builtin_literals.end())
-                throw JackParserError(*_lexical_analyser, "Invalid keyword for term '" + curr_token + "'.");
+                throw JackCompilationEngineError(*_lexical_analyser, "Invalid keyword for term '" + curr_token + "'.");
             break;
         case TokenType::IDENTIFIER:
             // We need to look ahead one character to ascertain whether this
@@ -499,7 +499,7 @@ void Parser::compile_term(int nest_level) {
                 // immediately follow.
                 compile_term(nest_level);
             } else {
-                throw JackParserError(*_lexical_analyser, "Unexpected expression symbol '" + curr_token + "'.");
+                throw JackCompilationEngineError(*_lexical_analyser, "Unexpected expression symbol '" + curr_token + "'.");
             }
             break;
         default:
@@ -508,7 +508,7 @@ void Parser::compile_term(int nest_level) {
     _xml_parse_tree->close_xml();
 }
 
-void Parser::compile_subroutine_invocation() {
+void CompilationEngine::compile_subroutine_invocation() {
     _lexical_analyser->try_advance();
     std::string token = _lexical_analyser->get_token();
     xml_capture_token(); // ( or .
@@ -522,11 +522,11 @@ void Parser::compile_subroutine_invocation() {
         expect_token_type(TokenType::IDENTIFIER, "Expected an identifier in subroutine invocation.");
         compile_subroutine_invocation();
     } else {
-        throw JackParserError(*_lexical_analyser, "Invalid subroutine invocation.");
+        throw JackCompilationEngineError(*_lexical_analyser, "Invalid subroutine invocation.");
     }
 }
 
-int Parser::compile_expression_list() {
+int CompilationEngine::compile_expression_list() {
     _xml_parse_tree->open_xml("expressionList");
     int num_expressions = 0;
 
@@ -550,7 +550,7 @@ int Parser::compile_expression_list() {
             xml_capture_token();
             compile_expression(0);
         } else {
-            throw JackParserError(*_lexical_analyser, "Expected comma between expressions.");
+            throw JackCompilationEngineError(*_lexical_analyser, "Expected comma between expressions.");
         }
 
         ++num_expressions;
@@ -559,7 +559,7 @@ int Parser::compile_expression_list() {
     return num_expressions;
 }
 
-bool Parser::try_compile_subscript() {
+bool CompilationEngine::try_compile_subscript() {
     if (_lexical_analyser->try_advance() && _lexical_analyser->get_token() == "[") {
         xml_capture_token();
         compile_expression(0);
@@ -572,7 +572,7 @@ bool Parser::try_compile_subscript() {
 }
 
 // Trailing variables lists are of the form: `, var1, var2, ...`
-bool Parser::try_compile_trailing_variable_list() {
+bool CompilationEngine::try_compile_trailing_variable_list() {
     bool compiled = false;
     while (_lexical_analyser->try_advance() && _lexical_analyser->get_token() == ",") {
         xml_capture_token();
@@ -583,18 +583,18 @@ bool Parser::try_compile_trailing_variable_list() {
     return compiled;
 }
 
-void Parser::expect_token_type(TokenType token_type, const std::string& err_message) {
+void CompilationEngine::expect_token_type(TokenType token_type, const std::string& err_message) {
     _lexical_analyser->try_advance();
     if (_lexical_analyser->token_type() != token_type) {
-        throw JackParserError(*_lexical_analyser, err_message.c_str());
+        throw JackCompilationEngineError(*_lexical_analyser, err_message.c_str());
     }
     xml_capture_token();
 }
 
-void Parser::expect_token(const std::string& token, const std::string& err_message) {
+void CompilationEngine::expect_token(const std::string& token, const std::string& err_message) {
     _lexical_analyser->try_advance();
     if (_lexical_analyser->get_token() != token) {
-        throw JackParserError(*_lexical_analyser, err_message.c_str());
+        throw JackCompilationEngineError(*_lexical_analyser, err_message.c_str());
     }
     xml_capture_token();
 }
@@ -602,33 +602,33 @@ void Parser::expect_token(const std::string& token, const std::string& err_messa
 // A valid data type is either a built-in type or an identifier (it's not the
 // responsibility of this function to determine whether it actually references
 // a valid class (TODO: yet?)).
-void Parser::expect_data_type(const std::string& err_message) {
+void CompilationEngine::expect_data_type(const std::string& err_message) {
     _lexical_analyser->try_advance();
     std::string token = _lexical_analyser->get_token();
     if ((LexicalAnalyser::data_types.find(token) == LexicalAnalyser::data_types.end()) &&
             _lexical_analyser->token_type() != TokenType::IDENTIFIER) {
-        throw JackParserError(*_lexical_analyser, err_message.c_str());
+        throw JackCompilationEngineError(*_lexical_analyser, err_message.c_str());
     }
     xml_capture_token();
 }
 
-void Parser::xml_capture_token() {
+void CompilationEngine::xml_capture_token() {
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_token());
 }
 
-JackParserError::JackParserError(LexicalAnalyser& lexical_analyser, char const* const message) throw() 
+JackCompilationEngineError::JackCompilationEngineError(LexicalAnalyser& lexical_analyser, char const* const message) throw() 
         : _message(message) {
     std::cerr << Colour::RED
-              << "Parser Error: " 
+              << "CompilationEngine Error: " 
               << message
               << Colour::RESET
               << std::endl;
 }
 
-JackParserError::JackParserError(LexicalAnalyser& lexical_analyser, const std::string& message) throw()
-        : JackParserError(lexical_analyser, message.c_str()) {
+JackCompilationEngineError::JackCompilationEngineError(LexicalAnalyser& lexical_analyser, const std::string& message) throw()
+        : JackCompilationEngineError(lexical_analyser, message.c_str()) {
 }
 
-char const* JackParserError::what() const throw() {
+char const* JackCompilationEngineError::what() const throw() {
     return _message;
 }

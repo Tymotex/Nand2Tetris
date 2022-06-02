@@ -2,7 +2,7 @@
 # Tests that the LexicalAnalyser produces the correct token stream by comparing
 # the XML it produces against the expected token streams in the *T.expected.xml
 # files in the test-files/ directory.
-# Also tests that Parser produces the correct XML parse tree.
+# Also tests that CompilationEngine produces the correct XML parse tree.
 
 # ANSI colours.
 RED='\033[0;31m'
@@ -41,10 +41,10 @@ for each_file in $(find test-files | grep "\.jack$"); do
     test_round=$(expr $test_round + 1)
 done
 
-echo "══════════ Parser XML Tests ══════════"
+echo "══════════ CompilationEngine XML Tests ══════════"
 test_round=0
 for each_file in $(find test-files | grep "\.jack$"); do
-    echo "\t═════ Parser Test $test_round ═════"
+    echo "\t═════ CompilationEngine Test $test_round ═════"
 
     file_directory=$(dirname $(readlink -f $each_file))
     file_basename=$(basename $each_file | cut -d. -f1) 

@@ -13,14 +13,14 @@ Grammar:
 LexicalAnalyser
 * Finish this first
 * JackCompiler loops through this, then for the current token decides which
-  method of Parser to call.
-  + Parser also has a reference to the SAME LexicalAnalyser and will continue
+  method of CompilationEngine to call.
+  + CompilationEngine also has a reference to the SAME LexicalAnalyser and will continue
     to advance it forward in order to do recursive descent.
 
 JackCompiler
 * This will contain the while(has more tokens) advance, and will have a switch-case
-  stack that determines what Parser method to call.
-Parser
+  stack that determines what CompilationEngine method to call.
+CompilationEngine
 * Recursive descent.
 
 ### Implementation Ideas:
@@ -41,9 +41,9 @@ Parser
 
     - There's probably no need to do this.
 * Try to get `test-files` working with `ctest`.
-* The Parser should probably have a delegator function that has a big switch-case
+* The CompilationEngine should probably have a delegator function that has a big switch-case
   stack that decides which compileXXX command to call. Ie. this should be placed
-  in Parser instead of JackCompiler, since it's needed there.
+  in CompilationEngine instead of JackCompiler, since it's needed there.
 * Have another read over 10.3 after getting something simple done Eg. Main.jack.
 
 2. Implement tokeniser and ensure you pass all 3 tests for *T.xml

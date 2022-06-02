@@ -7,16 +7,16 @@
 #include <memory>
 #include <string>
 
-class Parser {
+class CompilationEngine {
 public:
     /**
      * Takes in the token stream produced by LexicalAnalyser and the output
      * file stream. The parser advances through the token stream with 
      * recursive descent.
      */
-    explicit Parser(std::shared_ptr<LexicalAnalyser> lexical_analyser, const std::string& o);
+    explicit CompilationEngine(std::shared_ptr<LexicalAnalyser> lexical_analyser, const std::string& o);
 
-    ~Parser();
+    ~CompilationEngine();
 
     /**
      * Compiles a class construct.
@@ -127,7 +127,7 @@ private:
     std::shared_ptr<LexicalAnalyser> _lexical_analyser;
 
     /**
-     * An XML writer that Parser writes the parse tree into. Useful for testing
+     * An XML writer that CompilationEngine writes the parse tree into. Useful for testing
      * and debugging.
      */
     std::unique_ptr<XMLOutput> _xml_parse_tree;
@@ -151,12 +151,12 @@ private:
     void xml_capture_token();
 };
 
-class JackParserError : public std::exception {
+class JackCompilationEngineError : public std::exception {
 public:
     static const size_t MAX_MSG_LEN = 64;
 
-    JackParserError(LexicalAnalyser& lexical_analyser, char const* const message) throw();
-    JackParserError(LexicalAnalyser& lexical_analyser, const std::string& message) throw();
+    JackCompilationEngineError(LexicalAnalyser& lexical_analyser, char const* const message) throw();
+    JackCompilationEngineError(LexicalAnalyser& lexical_analyser, const std::string& message) throw();
 
     virtual char const* what() const throw();
 private:

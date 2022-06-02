@@ -58,7 +58,6 @@ private:
     std::stack<std::string> _open_elements;
 
     // Options.
-    // TODO: Refactor options passing. Research how people make it more elegant.
     bool _should_indent;
     bool _should_log;
     int _indent_size;
