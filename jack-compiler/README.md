@@ -63,6 +63,7 @@ currently pointing at. Skip all whitespace.
 - 
 
 TODO: for the future:
+- Add for-loops to the language.
 - Make it optional to output *T.xml
 - Write up an explanation of how you implemented the compiler and what data structures you used and how your tokenisation and parsing algorithms work.
 * There should be logic preventing multiple classes per file and nested classes.
@@ -70,3 +71,111 @@ TODO: for the future:
 * Disallow integer constant overflow/underflow.
 - 
 * Investigate possiblity of tweaking the VM translator to produce valid x86 assembly code.
+  Can leverage other intermediate language representations? Or other compilers?
+* After completing everything, write a big blog summarising very concisely how
+  to build a computer and programming language + compiler from first principles.
+
+# How it works
+A recount of how I implemented the compiler (part I)
+
+The major components are:
+- `JackCompiler`
+  The entry point of the compiler. It's responsible for handling command-line
+  arguments and kicking off the compilation process starting from lexical
+  analysis, building up an abstract syntax tree, then code generation.
+- `CompilationEngine`
+  A [recursive descent parser](https://en.wikipedia.org/wiki/Recursive_descent_parser#:~:text=In%20computer%20science%2C%20a%20recursive,the%20nonterminals%20of%20the%20grammar.)
+  that traverses the token stream produced by `LexicalAnalyser` and applies the
+  rules of Jack grammar to compile language constructs like classes,
+  subroutines, statements and expressions.
+- `LexicalAnalyser`
+  This module is responsible for traversing the source code input stream and
+  mapping it to a token stream that the CompilationEngine can extract from
+  and process tokens.
+
+Jack is almost an [LL(1)](https://en.wikipedia.org/wiki/LL_grammar) language that's
+designed such that the parser would 'know' what the compilation target for each
+token it encounters is without having to perform a look-ahead on the token
+stream. The only exception to this is in expression parsing.
+
+# Compiler II
+
+### Scope
+Every identifier is implicitly associated with a scope.
+- Static and field variables are meant to be scoped to the class only.
+  - Note: the class-level symbol table gives enough information for the OS to
+    know how much memory to allocate to objects of the class.
+- Local and argument variables are scoped to the subroutine only.
+
+We use 2 static symbol tables, one for tracking class-level scope and one for
+tracking the subroutine-level scope. When the compiler wants to verify that a
+symbol is in scope, it checks the closest scope first, then proceeds to outward
+scopes. A variable is considered not in scope if no scope 'layer' contains that
+variable in the symbol table.
+
+In Jack, we can only support 2 scope layers. To support arbitrary levels of scope nesting, we'd have to use a linked list
+structure with each node containing a symbol table, for example.
+
+When inside a class declaration, a new class-level symbol table is created and
+any instance/static field declarations insert a new entry to the table.
+Likewise, when encoutering a subroutine declaration, the compile creates a new
+subroutine-level symbol table and inserts new entries for any local variable
+declaration.
+
+# Methods
+
+- Methods always get `this` as their first argument implicitly.
+
+TODO: "If no path is specified, the compiler operates on the current folder."
+
+# Implementation plan:
+
+- Each .jack file produces a corresponding .vm file with the same name.
+  Eg. X.jack compiles to X.vm
+- Subroutine f in X.jack becomes a VM function with name `X.f`.
+- Each of Foo's static variables gets mapped to `static 0`, `static 1`, `static 2`
+- Each of Foo's field variables gets mapped to `this 0`, `this 1`, `this 2`
+- Each of a constructor or function's arguments gets mapped to `argument 0`, `argument 1`, `argument 2`
+- Each of a method's arguments variables gets mapped to `argument 1`, `argument 2`, `argument 3`. This starts from 1!!!
+- Each of a constr/func/meth's local variables gets mapped to `local 0`, `local 1`, `local 2`
+- When an object method is referenced:
+    push argument 0   # To get `this`' memory address onto the stack.
+    pop pointer 0     # To put it into the THIS RAM register.
+    The caller is responsible for putting this into argument 0.
+- Arrays (re-read those pages)
+- null and false become `push constant 0`. 
+- true becomes `push constant 1` followed by `neg` to make it 1111111111111111 in memory.
+- this becomes `push pointer 0`
+
+- Handling identifiers:
+  - Any identifier not in the symbol table can be assumed to be a class name or subroutine name (for valid code only).
+  - There is no linking anyway. There's no need to keep subroutines and class names in the symbol table.
+- Compiling expressions:
+  - Implement `codeWrite`
+  - * and / become `push operand1`, `push operand2` then `call Math.multiply 2` or `call Math.divide 2`
+- Compiling strings:
+  - Push strlen, then `call String.new`, then push each character c onto the stack and calling appendChar for each of them.
+  - Remember, appendChar returns the string, and so does the constructor.
+- Compiling func and constr *calls*:
+  - First, invoke compileExpressionList to get the n args onto the stack, then `call ___ n`
+- Compiling method *calls*.
+  - First, push the mem address of the object which is being acted on onto the stack for argument 0,
+  - Then, invoke compileExpressionList to get the subsequent n args onto the stack, then `call ___ n`.
+- Compiling do statements:
+  - Just compile it as if it were `do expression`
+  - Discard the value by `pop temp 0`. All functions will return something. Void functions will do `push constant 0`, `return` by convention.
+- Compiling classes:
+  - Make a symbol table, then add to it all the field and static variables.
+  - Also make an empty subroutine symbol table.
+- Compiling subroutines:
+  - if method: Make a new subroutine symbol table, then insert <this, className, arg, 0>
+  - insert all parameters into table
+  - insert all local variables into table
+  - `function className.subroutineName nVars`, with nVars being the num of local variables.
+  - if method: then `push argument 0`, `pop pointer 0`
+  - if void: then `push constant 0` and `return`. The caller will discard the 0 by convention.
+- Compiling constructors:
+  - All of the above, but then do: `push constant nFields`, `call Memory.alloc 1`, `pop pointer 0`, which sets THIS to point to a new obj in the heap.
+  - `push pointer 0`, `return`. 
+- Compiling arrays:
+  - Just follow the page on array compilation.

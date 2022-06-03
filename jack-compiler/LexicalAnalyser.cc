@@ -84,6 +84,7 @@ LexicalAnalyser::LexicalAnalyser(const std::string& source_jack_file_path)
       _curr_token_type(TokenType::UNDEFINED),
       _curr_keyword(Keyword::UNDEFINED) {
 }
+// TODO: try make this class take in an istream instead of ifstream so that you can unit test it better.
 
 LexicalAnalyser::~LexicalAnalyser() {
 }

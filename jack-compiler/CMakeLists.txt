@@ -20,7 +20,14 @@ FetchContent_MakeAvailable(googletest)
 # ===== Executable =====
 add_subdirectory(utils)
 
-add_executable(JackCompiler JackCompiler.cc LexicalAnalyser.cc CompilationEngine.cc)
+add_executable(
+    JackCompiler
+    JackCompiler.cc
+    LexicalAnalyser.cc
+    CompilationEngine.cc
+    SymbolTable.cc
+    VMWriter.cc
+)
 
 target_link_libraries(
     JackCompiler PUBLIC utils
@@ -31,18 +38,18 @@ target_include_directories(
            "${PROJECT_SOURCE_DIR}/MathFunctions"
 )
 
-# # ===== Enable GoogleTest =====
-# # Building the GoogleTest test binaries
-# enable_testing()
+# ===== Enable GoogleTest =====
+# Building the GoogleTest test binaries
+enable_testing()
 
-# # Add new test files here:
-# add_executable(
-#     test_binary
-#     CompilationEngineTest.cc
-#     LexicalAnalyserTest.cc
-# )
+# Add new test files here:
+add_executable(
+    test_binary
+    SymbolTable.cc SymbolTableTest.cc
+    VMWriter.cc VMWriterTest.cc
+)
 
-# target_link_libraries(test_binary gtest_main)
+target_link_libraries(test_binary gtest_main)
 
-# include(GoogleTest)
-# gtest_discover_tests(test_binary)
+include(GoogleTest)
+gtest_discover_tests(test_binary)
