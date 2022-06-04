@@ -152,7 +152,9 @@ private:
      */
     std::istream& _jack_in;
 
-    // Token XML output stream.
+    /**
+     * Token XML output stream.
+     */
     std::ostream& _token_xml_out;
 
     // Cursor helper variables.
