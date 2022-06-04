@@ -73,6 +73,8 @@ public:
     void write_return();
 private:
     std::ostream& _vm_out;
+
+    std::string segment_to_str(const VirtualMemorySegment& segment);
 };
 
 #endif
