@@ -6,9 +6,12 @@
 #include <fstream>
 #include <memory>
 
-CompilationEngine::CompilationEngine(std::shared_ptr<LexicalAnalyser> lexical_analyser, const std::string& output_stream)
-    : _lexical_analyser(lexical_analyser),
-      _xml_parse_tree(std::make_unique<XMLOutput>(output_stream, true, false)) {
+CompilationEngine::CompilationEngine(
+        std::shared_ptr<LexicalAnalyser> lexical_analyser,
+        std::ostream& vm_stream, std::ostream& xml_stream)
+        : _lexical_analyser(lexical_analyser),
+          _vm_out(vm_stream),
+          _xml_parse_tree(std::make_unique<XMLOutput>(xml_stream, true, false)) {
 }
 
 CompilationEngine::~CompilationEngine() {

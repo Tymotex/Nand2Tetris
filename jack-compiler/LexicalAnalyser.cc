@@ -78,13 +78,15 @@ std::unordered_map<TokenType, std::string> LexicalAnalyser::token_type_to_string
 
 std::regex LexicalAnalyser::valid_identifier_pattern = std::regex(R"(^[a-zA-Z]\w*$)");
 
-LexicalAnalyser::LexicalAnalyser(const std::string& source_jack_file_path)
-    : _jack_in(std::ifstream(source_jack_file_path)),
+LexicalAnalyser::LexicalAnalyser(std::istream& jack_stream, std::ostream& token_xml_stream)
+    : _jack_in(jack_stream),
+      _token_xml_out(token_xml_stream),
       _curr_token(""),
       _curr_token_type(TokenType::UNDEFINED),
       _curr_keyword(Keyword::UNDEFINED) {
+    // Dump the token stream as XML.
+    write_xml_tokens(false);
 }
-// TODO: try make this class take in an istream instead of ifstream so that you can unit test it better.
 
 LexicalAnalyser::~LexicalAnalyser() {
 }
@@ -198,23 +200,21 @@ void LexicalAnalyser::reset() {
     _curr_keyword = Keyword::UNDEFINED;
 }
 
-void LexicalAnalyser::write_xml_tokens(const std::string& token_xml_output_path,
-        const bool& enable_debug) {
-    std::string _token_xml_outpu_path;
-    XMLOutput token_xml_out(token_xml_output_path, false, false);
+void LexicalAnalyser::write_xml_tokens(const bool& enable_debug) {
+    XMLOutput xml_writer(_token_xml_out, false, false);
 
     // Start the XML token stream.
-    token_xml_out.open_xml("tokens");
+    xml_writer.open_xml("tokens");
 
     while (try_advance()) {
         if (enable_debug) show_tokeniser_debug_info();
         // Write the extracted token to the debug info XML output stream.
         if (_curr_token_type != TokenType::COMMENT) {
-            token_xml_out.form_xml(get_token_type(), _curr_token);
+            xml_writer.form_xml(get_token_type(), _curr_token);
         }
     }
 
-    token_xml_out.close_xml();
+    xml_writer.close_xml();
     reset();
 }
 

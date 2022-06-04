@@ -51,6 +51,7 @@ int main(int argc, char* argv[]) {
             }
         }
     } else {
+        // Translate a single .jack file.
         std::cout << argv[0]
                   << Colour::GREEN
                   << ": Translating a single file.\n\n"
@@ -60,33 +61,46 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-void translate_jack_file_to_vm(const std::string& path) {
-    std::string output_file_path =
-        get_directory_of_file(path) + get_basename(path) + ".xml";
+void translate_jack_file_to_vm(const std::string& jack_path) {
+    // Compilation artifact paths.
     std::string token_xml_output_path =
-        get_directory_of_file(path) + get_basename(path) + "T.xml";
+        get_directory_of_file(jack_path) + get_basename(jack_path) + "T.xml";
+    std::string vm_file_path =
+        get_directory_of_file(jack_path) + get_basename(jack_path) + ".vm";
+    std::string xml_file_path =
+        get_directory_of_file(jack_path) + get_basename(jack_path) + ".xml";
 
+    // Initialising the lexical analyser.
+    std::ifstream in_jack_stream(jack_path);
+    std::ofstream out_token_xml_stream(token_xml_output_path);
     std::shared_ptr<LexicalAnalyser> lexical_analyser =
-        std::make_shared<LexicalAnalyser>(path);
-    CompilationEngine parser(lexical_analyser, output_file_path);
-    
-    lexical_analyser->write_xml_tokens(token_xml_output_path, false);
+        std::make_shared<LexicalAnalyser>(in_jack_stream, out_token_xml_stream);
 
+    // Initialising the compilation engine.
+    std::ofstream out_vm_stream(vm_file_path);
+    std::ofstream out_xml_stream(xml_file_path);
+    CompilationEngine compilation_engine(lexical_analyser, out_vm_stream, out_xml_stream);
+    
     // Advance the token stream until the `class` token is reached.
     if (!lexical_analyser->try_advance_until_class_declaration())
         throw JackSyntaxError(*lexical_analyser, "Could not find class declaration.");
 
     // Kick off the recursive descent parsing process.
-    parser.compile_class();
+    compilation_engine.compile_class();
 
     std::cout << Colour::MAGENTA
-              << "\tOutput XML path: "
-              << output_file_path
+              << "\tToken XML file path:  "
+              << token_xml_output_path
               << Colour::RESET
               << "\n";
     std::cout << Colour::MAGENTA
-              << "\tToken XML path:  "
-              << token_xml_output_path
+              << "\tOutput XML file path: "
+              << xml_file_path
+              << Colour::RESET
+              << "\n";
+    std::cout << Colour::MAGENTA
+              << "\tVM file path: "
+              << xml_file_path
               << Colour::RESET
               << "\n";
 }

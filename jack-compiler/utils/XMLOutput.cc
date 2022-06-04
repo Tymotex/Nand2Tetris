@@ -11,9 +11,9 @@ std::unordered_map<char, std::string> XMLOutput::char_escape_dict = {
     {'&', "amp"}
 };
 
-XMLOutput::XMLOutput(const std::string& output_path, const bool& should_indent,
+XMLOutput::XMLOutput(std::ostream& output_stream, const bool& should_indent,
         const bool& should_log) 
-    : _output_file(std::ofstream(output_path)),
+    : _output_stream(output_stream),
       _indent_level(0),
       _open_elements(std::stack<std::string>()),
       _should_indent(should_indent),
@@ -27,14 +27,14 @@ XMLOutput::~XMLOutput() {
 
 void XMLOutput::form_xml(const std::string& element, const std::string& inner_xml) {
     indent();
-    _output_file << "<" + element + "> " + escape_xml_str(inner_xml) + " </" + element + ">\n";
+    _output_stream << "<" + element + "> " + escape_xml_str(inner_xml) + " </" + element + ">\n";
     if (_should_log)
         std::cout << "<" + element + "> " + escape_xml_str(inner_xml) + " </" + element + ">\n";
 }
 
 void XMLOutput::open_xml(const std::string& element) {
     indent();
-    _output_file << "<" + element + ">\n";
+    _output_stream << "<" + element + ">\n";
     if (_should_log)
         std::cout << "<" + element + ">\n";
     _open_elements.push(element);
@@ -46,20 +46,20 @@ void XMLOutput::close_xml() {
     _open_elements.pop();
     --_indent_level;
     indent();
-    _output_file << "</" + closing_element + ">\n";
+    _output_stream << "</" + closing_element + ">\n";
     if (_should_log)
         std::cout << "</" + closing_element + ">\n";
 }
 
+// TODO: remove. The std::ostream destructor handles stream closure already.
 void XMLOutput::close() {
-    _output_file.close();
 }
 
 void XMLOutput::indent() {
     if (!_should_indent) return;
     for (int i = 0; i < _indent_level; ++i) {
         for (int j = 0; j < _indent_size; ++j) {
-            _output_file << " ";
+            _output_stream << " ";
             if (_should_log)
                 std::cout << " ";
         }

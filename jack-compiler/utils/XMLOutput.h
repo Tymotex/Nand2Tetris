@@ -15,7 +15,7 @@ public:
     /**
      * Opens a new XML file for writing.
      */
-    explicit XMLOutput(const std::string& output_path,
+    explicit XMLOutput(std::ostream& output_stream,
         const bool& should_indent, const bool& should_log);
 
     ~XMLOutput();
@@ -51,7 +51,7 @@ public:
 
 private:
     // XML output file.
-    std::ofstream _output_file;
+    std::ostream& _output_stream;
 
     // Book-keeping.
     int _indent_level;

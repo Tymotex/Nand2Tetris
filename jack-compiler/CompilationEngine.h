@@ -3,6 +3,7 @@
 #define PARSER_H
 
 #include "LexicalAnalyser.h"
+#include <ostream>
 #include <fstream>
 #include <memory>
 #include <string>
@@ -14,7 +15,8 @@ public:
      * file stream. The parser advances through the token stream with 
      * recursive descent.
      */
-    explicit CompilationEngine(std::shared_ptr<LexicalAnalyser> lexical_analyser, const std::string& o);
+    explicit CompilationEngine(std::shared_ptr<LexicalAnalyser> lexical_analyser,
+        std::ostream& vm_stream, std::ostream& xml_stream);
 
     ~CompilationEngine();
 
@@ -131,6 +133,11 @@ private:
      * and debugging.
      */
     std::unique_ptr<XMLOutput> _xml_parse_tree;
+
+    /**
+     * 
+     */
+    std::ostream& _vm_out;
 
     /**
      * Throws a JackParseException if the current token is of a certain type, 

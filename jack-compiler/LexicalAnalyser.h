@@ -53,7 +53,7 @@ public:
      * Opens an input file stream from the given Jack source. Prepares it for
      * tokenisation.
      */
-    explicit LexicalAnalyser(const std::string& source_jack_file_path);
+    explicit LexicalAnalyser(std::istream& jack_stream, std::ostream& token_xml_stream);
 
     ~LexicalAnalyser();
 
@@ -121,8 +121,7 @@ public:
      * Produces a token stream and writes it as XML to the designated output
      * stream. Resets the analyser.
      */
-    void write_xml_tokens(const std::string& token_xml_output_path,
-        const bool& enable_debug);
+    void write_xml_tokens(const bool& enable_debug);
 
     /**
      * Advances until the first (and only) class declaration is reached. At the
@@ -151,7 +150,10 @@ private:
     /**
      * Jack character input stream.
      */
-    std::ifstream _jack_in;
+    std::istream& _jack_in;
+
+    // Token XML output stream.
+    std::ostream& _token_xml_out;
 
     // Cursor helper variables.
     std::string _curr_token;
