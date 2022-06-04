@@ -1,7 +1,39 @@
 # Jack Compiler
 
-Written in C++.
-Jack is an LL(1), context-free language.
+A Jack compiler, written in C++. Jack is an LL(1) object-oriented language.
+The Jack compilation model works in two stages, the first involves using this
+compiler binary to generate VM code that can be run by the Jack VM (in the same
+fashion that Java compilers convert Java source to bytecode which can be 
+executed by the JVM), then the VM is mapped to the hardware platform's assembly
+language, then finally to machine code by the assembler.
+
+```bash
+# Build and run
+cmake -S . -b build   # Generate the cross-platform build system (make sure to install CMake).
+cmake --build build   # Produce build files
+
+./build/JackCompiler <file>        # Translates a single .jack file.
+./build/JackCompiler <directory>   # Translates all .jack files in the given directory.
+./build/JackCompiler               # Same as the above, but uses the current directory.
+```
+
+By default, `JackCompiler` outputs VM code to files along the same path as the 
+input `.jack` source files.
+
+To run tests for the compiler:
+
+```bash
+# Run integration tests.
+sh SyntaxAnalysisTest.sh
+
+# ... or
+chmod +x SyntaxAnalysisTest.sh
+./SyntaxAnalysisTest.sh
+
+# Run unit tests.
+cmake --build build
+cd build && ctest --verbose   # The --verbose option outputs GoogleTest's test failure messages.
+```
 
 Lexical analysis: all tokens are either *keywords*, *symbols*, *integer literals*, *string literals* or *identifiers*.
 

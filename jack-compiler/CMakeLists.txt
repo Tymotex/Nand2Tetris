@@ -45,11 +45,13 @@ enable_testing()
 # Add new test files here:
 add_executable(
     test_binary
+    LexicalAnalyser.cc LexicalAnalyserTest.cc 
+    CompilationEngine.cc CompilationEngineTest.cc 
     SymbolTable.cc SymbolTableTest.cc
     VMWriter.cc VMWriterTest.cc
 )
 
-target_link_libraries(test_binary gtest_main)
+target_link_libraries(test_binary gtest_main utils)
 
 include(GoogleTest)
 gtest_discover_tests(test_binary)
