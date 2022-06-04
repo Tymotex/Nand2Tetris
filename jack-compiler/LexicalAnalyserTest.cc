@@ -45,3 +45,25 @@ TEST_F(LexicalAnalyserTestFixture, EmptyStreamTest) {
     EXPECT_FALSE(lexical_analyser.try_advance());
     EXPECT_FALSE(lexical_analyser.try_advance());
 }
+
+// Verifying that the lexical analyser can categorise keywords correctly
+// and differentiate them from identifiers.
+TEST_F(LexicalAnalyserTestFixture, DifferentiatesKeywordsAndIdentifiers) {
+    std::istringstream source(
+        "class function method main void test hello world");
+    std::vector<std::tuple<TokenType, Keyword>> expected_classifications = {
+        std::make_tuple(TokenType::KEYWORD, Keyword::CLASS),
+        std::make_tuple(TokenType::KEYWORD, Keyword::FUNCTION),
+        std::make_tuple(TokenType::KEYWORD, Keyword::METHOD),
+        std::make_tuple(TokenType::IDENTIFIER, Keyword::UNDEFINED),
+        std::make_tuple(TokenType::KEYWORD, Keyword::VOID),
+        std::make_tuple(TokenType::IDENTIFIER, Keyword::UNDEFINED),
+        std::make_tuple(TokenType::IDENTIFIER, Keyword::UNDEFINED),
+        std::make_tuple(TokenType::IDENTIFIER, Keyword::UNDEFINED),
+    };
+    LexicalAnalyser lexical_analyser(source, sink);
+    for (int i = 0; lexical_analyser.try_advance() && i < expected_classifications.size(); ++i) {
+        EXPECT_EQ(lexical_analyser.token_type(), std::get<0>(expected_classifications[i]));
+        EXPECT_EQ(lexical_analyser.keyword(), std::get<1>(expected_classifications[i]));
+    }
+}

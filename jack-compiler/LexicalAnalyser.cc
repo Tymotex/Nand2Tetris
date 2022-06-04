@@ -114,6 +114,12 @@ bool LexicalAnalyser::try_advance() {
 
     char first_char = _jack_in.get();
 
+    // Reset cursor variables.
+    _curr_token = "";
+    _curr_keyword = Keyword::UNDEFINED;
+    _curr_token_type = TokenType::UNDEFINED;
+
+    // Disambiguate token type based on the first character of the token.
     if (first_char == '"') {
         try_read_string_literal();
     } else if (std::isdigit(first_char)) {
@@ -222,7 +228,8 @@ bool LexicalAnalyser::try_advance_until_class_declaration() {
     while (true) {
         if (token_type() == TokenType::KEYWORD && keyword() == Keyword::CLASS)
             return true;
-        try_advance();
+        if (!try_advance())
+            return false;
     }
     return false;
 }
@@ -401,7 +408,8 @@ void LexicalAnalyser::try_read_identifier() {
     }
 
     // Seek 1 character backwards.
-    _jack_in.seekg(-1, std::ios_base::cur);
+    if (!_jack_in.eof())
+        _jack_in.seekg(-1, std::ios_base::cur);
 
     // Validate the identifier.
     if (!std::regex_match(token, valid_identifier_pattern)) {
