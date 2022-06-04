@@ -619,6 +619,15 @@ void CompilationEngine::xml_capture_token() {
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_token());
 }
 
+JackCompilationEngineError::JackCompilationEngineError(const std::string& message) throw()
+        : _message(message.c_str()) {
+    std::cerr << Colour::RED
+              << "CompilationEngine Error: " 
+              << message
+              << Colour::RESET
+              << std::endl;
+}
+
 JackCompilationEngineError::JackCompilationEngineError(LexicalAnalyser& lexical_analyser, char const* const message) throw() 
         : _message(message) {
     std::cerr << Colour::RED

@@ -162,6 +162,7 @@ class JackCompilationEngineError : public std::exception {
 public:
     static const size_t MAX_MSG_LEN = 64;
 
+    JackCompilationEngineError(const std::string& message) throw();
     JackCompilationEngineError(LexicalAnalyser& lexical_analyser, char const* const message) throw();
     JackCompilationEngineError(LexicalAnalyser& lexical_analyser, const std::string& message) throw();
 

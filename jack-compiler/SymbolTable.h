@@ -5,10 +5,17 @@
 #include <string>
 #include <unordered_map>
 
+enum class DeclarationType {
+    VAR, FIELD, STATIC, ARGUMENT
+};
+
+// Container for symbol properties.
 struct SymbolData {
     std::string data_type;
-    Keyword declaration_type;
+    DeclarationType declaration_type;
     int index;
+
+    SymbolData(std::string data_type, const DeclarationType declaration_type, const int index);
 };
 
 /**
@@ -38,33 +45,37 @@ public:
      * local variable). Assigns the symbol an index value (sourced from 4
      * running counters) behind the scenes.
      */
-    void define(const std::string& name, const std::string& type,
-        Keyword declaration_type);
+    void define(const std::string& name, const std::string& data_type,
+        DeclarationType declaration_type);
 
     /**
      * Returns the number of variables with the given declaration type. You'd
      * use this to determine how much memory to allocate to the instantiation of
      * class, for example.
      */
-    int var_count(Keyword kind);
+    int var_count(DeclarationType declaration_type);
 
     /**
      * Accesses the declaration type of the given identifier.
      */
-    Keyword kind_of(const std::string& name);
+    DeclarationType declaration_type(const std::string& name);
 
     /**
      * Accesses the data type of the given identifier.
      */
-    std::string type_of(const std::string& name);
+    std::string data_type(const std::string& name);
 
     /**
      * Accesses the index value assigned to the given identifier.
      */
-    int index_of(const std::string& name);
+    int segment_index(const std::string& name);
     
+    /**
+     * Determines whether the given symbol name exists in the table.
+     */
+    bool exists(const std::string& name);
 private:
-    std::unordered_map<std::string, SymbolData> _symbol_table;
+    std::unordered_map<DeclarationType, std::unordered_map<std::string, SymbolData>> _symbol_table;
 };
 
 #endif

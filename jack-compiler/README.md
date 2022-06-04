@@ -95,6 +95,7 @@ currently pointing at. Skip all whitespace.
 - 
 
 TODO: for the future:
+- CLI argument processing. Make it optionally output XML.
 - Add for-loops to the language.
 - Make it optional to output *T.xml
 - Write up an explanation of how you implemented the compiler and what data structures you used and how your tokenisation and parsing algorithms work.
