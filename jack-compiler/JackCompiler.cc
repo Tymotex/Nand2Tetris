@@ -24,9 +24,9 @@ int main(int argc, char* argv[]) {
     }
 
     std::string input_file_path = argv[1];
-    std::string basename = get_basename(input_file_path);
+    std::string basename = get_basename_without_extension(input_file_path);
     std::string output_dir = std::filesystem::is_directory(input_file_path) ?
-        get_basename(input_file_path) : 
+        get_basename_without_extension(input_file_path) : 
         get_directory_of_file(input_file_path);
 
     // If the given path points to a directory, then process all .jack files
@@ -62,13 +62,15 @@ int main(int argc, char* argv[]) {
 }
 
 void translate_jack_file_to_vm(const std::string& jack_path) {
+    std::string translation_unit_name = get_basename_without_extension(jack_path);
+
     // Compilation artifact paths.
     std::string token_xml_output_path =
-        get_directory_of_file(jack_path) + get_basename(jack_path) + "T.xml";
+        get_directory_of_file(jack_path) + translation_unit_name + "T.xml";
     std::string vm_file_path =
-        get_directory_of_file(jack_path) + get_basename(jack_path) + ".vm";
+        get_directory_of_file(jack_path) + translation_unit_name + ".vm";
     std::string xml_file_path =
-        get_directory_of_file(jack_path) + get_basename(jack_path) + ".xml";
+        get_directory_of_file(jack_path) + translation_unit_name + ".xml";
 
     // Initialising the lexical analyser.
     std::ifstream in_jack_stream(jack_path);
@@ -79,7 +81,8 @@ void translate_jack_file_to_vm(const std::string& jack_path) {
     // Initialising the compilation engine.
     std::ofstream out_vm_stream(vm_file_path);
     std::ofstream out_xml_stream(xml_file_path);
-    CompilationEngine compilation_engine(lexical_analyser, out_vm_stream, out_xml_stream);
+    CompilationEngine compilation_engine(lexical_analyser,
+        translation_unit_name, out_vm_stream, out_xml_stream);
     
     // Advance the token stream until the `class` token is reached.
     if (!lexical_analyser->try_advance_until_class_declaration())
@@ -89,17 +92,17 @@ void translate_jack_file_to_vm(const std::string& jack_path) {
     compilation_engine.compile_class();
 
     std::cout << Colour::MAGENTA
-              << "\tToken XML file path:  "
+              << "\t> Token XML file path:  "
               << token_xml_output_path
               << Colour::RESET
               << "\n";
     std::cout << Colour::MAGENTA
-              << "\tOutput XML file path: "
+              << "\t> Output XML file path: "
               << xml_file_path
               << Colour::RESET
               << "\n";
     std::cout << Colour::MAGENTA
-              << "\tVM file path: "
+              << "\t> VM file path: "
               << vm_file_path
               << Colour::RESET
               << "\n";

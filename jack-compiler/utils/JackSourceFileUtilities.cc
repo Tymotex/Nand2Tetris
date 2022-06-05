@@ -16,7 +16,7 @@ std::string get_directory_of_file(const std::string& path) {
     return path.substr(0, last_slash_index + 1);
 }
 
-std::string get_basename(std::string path) {
+std::string get_basename_without_extension(std::string path) {
     // Strip trailing '/' otherwise the basename will be empty.
     if (path.back() == '/') path.pop_back();
 

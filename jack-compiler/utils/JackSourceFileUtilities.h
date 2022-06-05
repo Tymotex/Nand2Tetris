@@ -4,8 +4,8 @@
 #include <string>
 
 // Extracts the basename from a given path.
-// Eg. Given "/home/linus/hello.txt", `get_basename` returns "hello".
-std::string get_basename(std::string path);
+// Eg. Given "/home/linus/hello.txt", `get_basename_without_extension` returns "hello".
+std::string get_basename_without_extension(std::string path);
 
 // Determines whether the given file has the .jack file extension.
 bool is_jack_file(const std::string& path);

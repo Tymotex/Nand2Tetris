@@ -1,7 +1,4 @@
 class Main {
-    field int someVar;
-    static int someStaticVar;
-
     function void main() {
         do Output.printString("Hello World");
         return;

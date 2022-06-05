@@ -1,5 +1,6 @@
 #include "LexicalAnalyser.h"
 #include "CompilationEngine.h"
+#include "VMWriter.h"
 #include "utils/XMLOutput.h"
 #include "utils/Colouriser.h"
 #include <iostream>
@@ -8,10 +9,12 @@
 
 CompilationEngine::CompilationEngine(
         std::shared_ptr<LexicalAnalyser> lexical_analyser,
+        const std::string& translation_unit_name,
         std::ostream& vm_stream, std::ostream& xml_stream)
         : _lexical_analyser(lexical_analyser),
-          _vm_out(vm_stream),
-          _xml_parse_tree(std::make_unique<XMLOutput>(xml_stream, true, false)) {
+          _vm_writer(VMWriter(vm_stream)),
+          _xml_parse_tree(std::make_unique<XMLOutput>(xml_stream, true, false)),
+          _translation_unit_name(translation_unit_name) {
 }
 
 CompilationEngine::~CompilationEngine() {

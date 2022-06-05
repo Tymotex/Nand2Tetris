@@ -4,6 +4,7 @@
 
 #include "LexicalAnalyser.h"
 #include "SymbolTable.h"
+#include "VMWriter.h"
 #include <ostream>
 #include <fstream>
 #include <memory>
@@ -17,7 +18,8 @@ public:
      * recursive descent.
      */
     explicit CompilationEngine(std::shared_ptr<LexicalAnalyser> lexical_analyser,
-        std::ostream& vm_stream, std::ostream& xml_stream);
+        const std::string& translation_unit_name, std::ostream& vm_stream,
+        std::ostream& xml_stream);
 
     ~CompilationEngine();
 
@@ -135,10 +137,14 @@ private:
      */
     std::unique_ptr<XMLOutput> _xml_parse_tree;
 
+    std::string _translation_unit_name;
+
+
     /**
-     * Output stream that VM instructions get written to.
+     * The module responsible for writing VM instructions.
+     * Contains the output stream that VM instructions get written to.
      */
-    std::ostream& _vm_out;
+    VMWriter _vm_writer;
 
     /**
      * Class-level symbol table storing all identifiers declared with `static`
