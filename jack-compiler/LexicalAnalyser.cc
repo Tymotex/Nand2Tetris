@@ -411,14 +411,11 @@ void LexicalAnalyser::try_read_identifier() {
     if (!_jack_in.eof())
         _jack_in.seekg(-1, std::ios_base::cur);
 
-    // Validate the identifier.
-    if (!std::regex_match(token, valid_identifier_pattern)) {
-        std::string err_msg = "Invalid identifier name: '" + token + "'";
-        throw JackSyntaxError(*this, err_msg.c_str());
-    } else {
-        _curr_token = token;
-        _curr_token_type = TokenType::IDENTIFIER;
-    }
+    if (!is_valid_identifier(token))
+        throw JackSyntaxError(*this, "Invalid identifier name: '" + token + "'");
+
+    _curr_token = token;
+    _curr_token_type = TokenType::IDENTIFIER;
 }
 
 bool LexicalAnalyser::is_keyword(const std::string& token) {
@@ -448,6 +445,19 @@ std::string LexicalAnalyser::get_token_type() {
         return token_type_to_string[token_type()];
     }
     return "undefined";
+}
+
+bool LexicalAnalyser::is_valid_identifier(const std::string& identifier) {
+    return std::regex_match(identifier, valid_identifier_pattern);
+}
+
+JackSyntaxError::JackSyntaxError(LexicalAnalyser& lexical_analyser, const std::string& message) throw()
+        : _message(message.c_str()) {
+    std::cerr << Colour::RED
+              << "Syntax Error: " 
+              << message
+              << Colour::RESET
+              << std::endl;
 }
 
 JackSyntaxError::JackSyntaxError(LexicalAnalyser& lexical_analyser, char const* const message) throw()

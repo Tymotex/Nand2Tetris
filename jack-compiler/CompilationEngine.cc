@@ -69,19 +69,23 @@ void CompilationEngine::compile_class_field_declaration() {
     _xml_parse_tree->open_xml("classVarDec");
 
     // static|field
-    xml_capture_token();
+    std::string decl_type = xml_capture_token();
 
     // type
-    expect_data_type("Expected a data type for field declaration.");
+    std::string data_type = expect_data_type("Expected a data type for field declaration.");
 
     // varName
-    expect_token_type(TokenType::IDENTIFIER, "Expected an identifier for field declaration.");
+    std::string identifier = expect_token_type(TokenType::IDENTIFIER, "Expected an identifier for field declaration.");
 
     // Optional trailing variable list: ', varName2, varName3, ...'
     try_compile_trailing_variable_list();
     
     // ;
     expect_token(";", "Unterminated field declaration.");
+
+    // Record the identifier in the symbol table.
+    _class_symbol_table.define(identifier, data_type, decl_type);
+    
     _xml_parse_tree->close_xml();
 }
 
@@ -586,37 +590,39 @@ bool CompilationEngine::try_compile_trailing_variable_list() {
     return compiled;
 }
 
-void CompilationEngine::expect_token_type(TokenType token_type, const std::string& err_message) {
+std::string CompilationEngine::expect_token_type(TokenType token_type, const std::string& err_message) {
     _lexical_analyser->try_advance();
     if (_lexical_analyser->token_type() != token_type) {
         throw JackCompilationEngineError(*_lexical_analyser, err_message.c_str());
     }
-    xml_capture_token();
+    return xml_capture_token();
 }
 
-void CompilationEngine::expect_token(const std::string& token, const std::string& err_message) {
+std::string CompilationEngine::expect_token(const std::string& token, const std::string& err_message) {
     _lexical_analyser->try_advance();
     if (_lexical_analyser->get_token() != token) {
         throw JackCompilationEngineError(*_lexical_analyser, err_message.c_str());
     }
-    xml_capture_token();
+    return xml_capture_token();
 }
 
 // A valid data type is either a built-in type or an identifier (it's not the
 // responsibility of this function to determine whether it actually references
 // a valid class (TODO: yet?)).
-void CompilationEngine::expect_data_type(const std::string& err_message) {
+std::string CompilationEngine::expect_data_type(const std::string& err_message) {
     _lexical_analyser->try_advance();
     std::string token = _lexical_analyser->get_token();
     if ((LexicalAnalyser::data_types.find(token) == LexicalAnalyser::data_types.end()) &&
             _lexical_analyser->token_type() != TokenType::IDENTIFIER) {
         throw JackCompilationEngineError(*_lexical_analyser, err_message.c_str());
     }
-    xml_capture_token();
+    return xml_capture_token();
 }
 
-void CompilationEngine::xml_capture_token() {
-    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), _lexical_analyser->get_token());
+std::string CompilationEngine::xml_capture_token() {
+    std::string token = _lexical_analyser->get_token();
+    _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), token);
+    return token;
 }
 
 JackCompilationEngineError::JackCompilationEngineError(const std::string& message) throw()

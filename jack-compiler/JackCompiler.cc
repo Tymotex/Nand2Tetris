@@ -100,7 +100,7 @@ void translate_jack_file_to_vm(const std::string& jack_path) {
               << "\n";
     std::cout << Colour::MAGENTA
               << "\tVM file path: "
-              << xml_file_path
+              << vm_file_path
               << Colour::RESET
               << "\n";
 }

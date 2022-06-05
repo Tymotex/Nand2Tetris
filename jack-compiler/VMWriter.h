@@ -3,9 +3,14 @@
 
 #include <string>
 #include <ostream>
+#include <unordered_map>
 
 enum class VirtualMemorySegment {
     CONSTANT, ARGUMENT, LOCAL, STATIC, THIS, THAT, POINTER, TEMP
+};
+
+enum class ArithmeticLogicOp {
+    ADD, SUB, NEG, EQ, GT, LT, AND, OR, NOT
 };
 
 class VMWriter {
@@ -36,7 +41,7 @@ public:
      * operator. 
      * Eg. given "+", the VMWriter emits the VM instruction 'add' .
      */
-    void write_arithmetic(const std::string& operator_symbol);
+    void write_arithmetic(const ArithmeticLogicOp op_type);
 
     /**
      * Writes to the output stream the VM instruction for declaring a label.
@@ -72,8 +77,14 @@ public:
      */
     void write_return();
 private:
+    /**
+     * Output stream where VM instructions are written to.
+     */
     std::ostream& _vm_out;
 
+    /**
+     * Mapes the given VirtualMemorySegment enum value to a string.
+     */
     std::string segment_to_str(const VirtualMemorySegment& segment);
 };
 

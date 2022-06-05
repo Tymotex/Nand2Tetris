@@ -26,6 +26,8 @@ struct SymbolData {
  */
 class SymbolTable {
 public:
+    static std::unordered_map<DeclarationType, std::string> decl_type_to_str;
+
     /**
      * Constructs a new symbol table with 0 entries.
      */ 
@@ -46,7 +48,7 @@ public:
      * running counters) behind the scenes.
      */
     void define(const std::string& name, const std::string& data_type,
-        DeclarationType declaration_type);
+        const std::string& declaration_type);
 
     /**
      * Returns the number of variables with the given declaration type. You'd
@@ -74,8 +76,31 @@ public:
      * Determines whether the given symbol name exists in the table.
      */
     bool exists(const std::string& name);
+
+    std::string str_declaration_type(DeclarationType decl_type);
 private:
     std::unordered_map<DeclarationType, std::unordered_map<std::string, SymbolData>> _symbol_table;
+
+    /**
+     * Determines whether the given string is a valid data type.
+     * Important note: all valid identifiers are treated as valid data types. 
+     * We assume them to reference classnames. There's no other means to verify
+     * this however since we cannot do the linker's job at this compilation
+     * stage.
+     */
+    bool is_valid_data_type(const std::string& data_type);
+
+    /**
+     * Determines whether the given string is a valid declaration type.
+     * Eg. 'static', 'field', 'var' or subroutine argument.
+     */
+    bool is_valid_decl_type(const std::string& decl_type);
+
+    /**
+     * Maps the given string to the `DeclarationType` enum value. Throws
+     * `JackCompilationEngineError` on failure.
+     */
+    DeclarationType str_to_declaration_type(const std::string& decl_type);
 };
 
 #endif

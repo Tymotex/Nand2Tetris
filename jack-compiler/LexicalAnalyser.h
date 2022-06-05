@@ -146,6 +146,11 @@ public:
     // Returns the stringified token type.
     std::string get_token_type();
 
+    /**
+     * Determines whether the given identifier follows identifier naming rules.
+     */
+    static bool is_valid_identifier(const std::string& identifier);
+
 private:
     /**
      * Jack character input stream.
@@ -215,6 +220,7 @@ class JackSyntaxError : public std::exception {
 public:
     static const size_t MAX_MSG_LEN = 64;
 
+    JackSyntaxError(LexicalAnalyser& lexical_analyser, const std::string& message) throw();
     JackSyntaxError(LexicalAnalyser& lexical_analyser, char const* const message) throw();
     virtual char const* what() const throw();
 private:

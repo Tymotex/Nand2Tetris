@@ -7,6 +7,6 @@ protected:
     }
 };
 
-TEST_F(CompilationEngineTestFixture, SanityCheck) {
-    EXPECT_EQ(1, 1);
-}
+// TEST_F(CompilationEngineTestFixture, RecordsClass) {
+//     EXPECT_EQ(1, 1);
+// }

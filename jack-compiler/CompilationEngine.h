@@ -3,6 +3,7 @@
 #define PARSER_H
 
 #include "LexicalAnalyser.h"
+#include "SymbolTable.h"
 #include <ostream>
 #include <fstream>
 #include <memory>
@@ -135,9 +136,21 @@ private:
     std::unique_ptr<XMLOutput> _xml_parse_tree;
 
     /**
-     * 
+     * Output stream that VM instructions get written to.
      */
     std::ostream& _vm_out;
+
+    /**
+     * Class-level symbol table storing all identifiers declared with `static`
+     * and `field`.
+     */
+    SymbolTable _class_symbol_table;
+
+    /**
+     * Subroutine-level symbol table storing all identifiers declared with
+     * `var` or received as an argument.
+     */
+    SymbolTable _subroutine_symbol_table;
 
     /**
      * Throws a JackParseException if the current token is of a certain type, 
@@ -145,17 +158,17 @@ private:
      * Invoking these functions will always advance the token stream cursor
      * forward one step AND capture the token as XML.
      */
-    void expect_token_type(TokenType token_type, const std::string& err_message);
-    void expect_token(const std::string& token, const std::string& err_message);
+    std::string expect_token_type(TokenType token_type, const std::string& err_message);
+    std::string expect_token(const std::string& token, const std::string& err_message);
 
     // Expects one of: primitive types, built-in classes or user-defined
     // classes.
-    void expect_data_type(const std::string& err_message);   
+    std::string expect_data_type(const std::string& err_message);   
 
     /**
      * Dumps the current token to the XML stream.
      */
-    void xml_capture_token();
+    std::string xml_capture_token();
 };
 
 class JackCompilationEngineError : public std::exception {

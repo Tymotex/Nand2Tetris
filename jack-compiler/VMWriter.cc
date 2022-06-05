@@ -1,5 +1,6 @@
 #include "VMWriter.h"
 #include <iostream>
+#include <unordered_map>
 
 VMWriter::VMWriter(std::ostream& stream)
         : _vm_out(stream) {
@@ -23,35 +24,64 @@ void VMWriter::write_pop(const VirtualMemorySegment& segment, const int index) {
             << index;
 }
 
-void VMWriter::write_arithmetic(const std::string& operator_symbol) {
-
+void VMWriter::write_arithmetic(const ArithmeticLogicOp op_type) {
+    switch (op_type) {
+        case ArithmeticLogicOp::ADD:
+            _vm_out << "add\n";
+            break;
+        case ArithmeticLogicOp::SUB:
+            _vm_out << "sub\n";
+            break;
+        case ArithmeticLogicOp::NEG:
+            _vm_out << "neg\n";
+            break;
+        case ArithmeticLogicOp::EQ:
+            _vm_out << "eq\n";
+            break;
+        case ArithmeticLogicOp::GT:
+            _vm_out << "gt\n";
+            break;
+        case ArithmeticLogicOp::LT:
+            _vm_out << "lt\n";
+            break;
+        case ArithmeticLogicOp::AND:
+            _vm_out << "and\n";
+            break;
+        case ArithmeticLogicOp::OR:
+            _vm_out << "or\n";
+            break;
+        case ArithmeticLogicOp::NOT:
+            _vm_out << "not\n";
+            break;
+        default:
+            throw std::invalid_argument("Unknown arithmetic/logical operation type.");
+    }
 }
 
 void VMWriter::write_label(const std::string& label) {
-
+    _vm_out << "label " << label << "\n";
 }
 
 void VMWriter::write_goto(const std::string& label) {
-
+    _vm_out << "goto " << label << "\n";
 }
 
 void VMWriter::write_if(const std::string& label) {
-
+    _vm_out << "if-goto " << label << "\n";
 }
 
 void VMWriter::write_call(const std::string& function_name, const int num_args) {
-
+    _vm_out << "call " << function_name << " " << num_args << "\n";
 }
 
 void VMWriter::write_function(const std::string& function_name, const int num_variables) {
-
+    _vm_out << "function " << function_name << " " << num_variables << "\n";
 }
 
 void VMWriter::write_return() {
-
+    _vm_out << "return\n";
 }
 
-// TODO: Make this into a map
 std::string VMWriter::segment_to_str(const VirtualMemorySegment& segment) {
     switch (segment) {
         case VirtualMemorySegment::ARGUMENT:

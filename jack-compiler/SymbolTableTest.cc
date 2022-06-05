@@ -10,7 +10,7 @@ protected:
 };
 
 TEST_F(SymbolTableTestFixture, InsertAndRetrieveTest) {
-    symbol_table.define("myVar", "int", DeclarationType::VAR);
+    symbol_table.define("myVar", "int", "var");
     EXPECT_EQ(symbol_table.data_type("myVar"), "int");
     EXPECT_EQ(symbol_table.declaration_type("myVar"), DeclarationType::VAR);
     EXPECT_EQ(symbol_table.segment_index("myVar"), 0);
@@ -18,13 +18,13 @@ TEST_F(SymbolTableTestFixture, InsertAndRetrieveTest) {
 
 // Verifies that the symbol table manages independent running counters for each
 // declaration type.
-TEST_F(SymbolTableTestFixture, DeclarationTypeRunningIndexTest) {
-    symbol_table.define("field1", "int", DeclarationType::FIELD);
-    symbol_table.define("static1", "int", DeclarationType::STATIC);
-    symbol_table.define("static2", "char", DeclarationType::STATIC);
-    symbol_table.define("var1", "int", DeclarationType::VAR);
-    symbol_table.define("var2", "char", DeclarationType::VAR);
-    symbol_table.define("var3", "boolean", DeclarationType::VAR);
+TEST_F(SymbolTableTestFixture, DeclarationTypeRunningIndexTest){
+    symbol_table.define("field1", "int", "field");
+    symbol_table.define("static1", "int", "static");
+    symbol_table.define("static2", "char", "static");
+    symbol_table.define("var1", "int", "var");
+    symbol_table.define("var2", "char", "var");
+    symbol_table.define("var3", "boolean", "var");
 
     EXPECT_EQ(symbol_table.segment_index("field1"), 0);
     EXPECT_EQ(symbol_table.segment_index("static1"), 0);
@@ -37,13 +37,13 @@ TEST_F(SymbolTableTestFixture, DeclarationTypeRunningIndexTest) {
 // Inserts symbols belonging to different memory segments and checks the correct
 // properties about them are stored and retrieved.
 TEST_F(SymbolTableTestFixture, MultipleSegmentInsertAndRetrieveTest) {
-    symbol_table.define("field1", "int", DeclarationType::FIELD);
-    symbol_table.define("static1", "int", DeclarationType::STATIC);
-    symbol_table.define("static2", "char", DeclarationType::STATIC);
-    symbol_table.define("var1", "int", DeclarationType::VAR);
-    symbol_table.define("var2", "char", DeclarationType::VAR);
-    symbol_table.define("var3", "boolean", DeclarationType::VAR);
-    symbol_table.define("arg1", "int", DeclarationType::ARGUMENT);
+    symbol_table.define("field1", "int", "field");
+    symbol_table.define("static1", "int", "static");
+    symbol_table.define("static2", "char", "static");
+    symbol_table.define("var1", "int", "var");
+    symbol_table.define("var2", "char", "var");
+    symbol_table.define("var3", "boolean", "var");
+    symbol_table.define("arg1", "int", "argument");
 
     EXPECT_EQ(symbol_table.declaration_type("field1"), DeclarationType::FIELD);
     EXPECT_EQ(symbol_table.data_type("field1"), "int");
@@ -66,12 +66,12 @@ TEST_F(SymbolTableTestFixture, MultipleSegmentInsertAndRetrieveTest) {
 // Tests that the symbol table records the correct set size of symbols under
 // different declaration types.
 TEST_F(SymbolTableTestFixture, RetrievesCorrectVariableCountForDeclType) {
-    symbol_table.define("field1", "int", DeclarationType::FIELD);
-    symbol_table.define("static1", "int", DeclarationType::STATIC);
-    symbol_table.define("static2", "char", DeclarationType::STATIC);
-    symbol_table.define("var1", "int", DeclarationType::VAR);
-    symbol_table.define("var2", "char", DeclarationType::VAR);
-    symbol_table.define("var3", "boolean", DeclarationType::VAR);
+    symbol_table.define("field1", "int", "field");
+    symbol_table.define("static1", "int", "static");
+    symbol_table.define("static2", "char", "static");
+    symbol_table.define("var1", "int", "var");
+    symbol_table.define("var2", "char", "var");
+    symbol_table.define("var3", "boolean", "var");
 
     EXPECT_EQ(symbol_table.var_count(DeclarationType::FIELD), 1);
     EXPECT_EQ(symbol_table.var_count(DeclarationType::STATIC), 2);
@@ -81,8 +81,9 @@ TEST_F(SymbolTableTestFixture, RetrievesCorrectVariableCountForDeclType) {
 // Tests that the symbol table can be wiped multiple times and have all state
 // correctly reset (such as the running index counters).
 TEST_F(SymbolTableTestFixture, ResetTest) {
-    symbol_table.define("var1", "int", DeclarationType::VAR);
-    symbol_table.define("var2", "char", DeclarationType::VAR);
+    symbol_table.define("var1", "int", "var");
+    symbol_table.define("var2", "char", "var");
+
     EXPECT_TRUE(symbol_table.exists("var1"));
     EXPECT_TRUE(symbol_table.exists("var2"));
 
@@ -95,8 +96,8 @@ TEST_F(SymbolTableTestFixture, ResetTest) {
     EXPECT_FALSE(symbol_table.exists("var2"));
 
     // Re-insert variables and verify the index number starts again from 0.
-    symbol_table.define("var1", "int", DeclarationType::VAR);
-    symbol_table.define("var2", "char", DeclarationType::VAR);
+    symbol_table.define("var1", "int", "var");
+    symbol_table.define("var2", "char", "var");
 
     EXPECT_EQ(symbol_table.segment_index("var1"), 0);
     EXPECT_EQ(symbol_table.segment_index("var2"), 1);
@@ -104,9 +105,9 @@ TEST_F(SymbolTableTestFixture, ResetTest) {
 
 // Verifies that a redeclaration of a symbol is recognised and disallowed.
 TEST_F(SymbolTableTestFixture, RedeclarationIsDisallowed) {
-    symbol_table.define("var1", "int", DeclarationType::VAR);
+    symbol_table.define("var1", "int", "var");
     EXPECT_THROW({
-        symbol_table.define("var1", "char", DeclarationType::VAR);
+        symbol_table.define("var1", "char", "var");
     }, JackCompilationEngineError)
         << "Symbol table needs to disallow the redeclaration of identifiers.";
 }
