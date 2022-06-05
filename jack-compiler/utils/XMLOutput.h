@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include <stack>
 
+class XMLOutputNode;
+
 class XMLOutput {
 public:
     // Stores the mappings between invalid XML characters and their escape
@@ -27,22 +29,18 @@ public:
     void form_xml(const std::string& element, const std::string& inner_xml);
 
     /**
-     * Opens a new XML element. You must also call `close` when you are done
-     * writing children elements to this open XML element.
+     * Opens a new XML element. If `inner_xml` content is provided, then the XML
+     * element is immediately closed off, otherwise it will be closed when the
+     * XMLOutputNode is destroyed.
      */
-    void open_xml(const std::string& element);
+    XMLOutputNode open_xml(const std::string& element);
+    void open_xml(const std::string& element, const std::string& inner_xml);
 
     /**
      * Closes off the currently open XML tag. It is the caller's responsibility
      * to ensure that every open XML tag has a corresponding closing tag.
      */
     void close_xml();
-
-    /**
-     * Escapes all illegal XML characters in the given string.
-     * Eg. `escape_str("I <3 you") == "I &lt;3 you"`
-     */
-    std::string escape_xml_str(const std::string& s);
 
     /**
      * Closes off the output stream.
@@ -66,6 +64,21 @@ private:
      * Writes `_indent_level` tab characters.
      */
     void indent();
+    
+    /**
+     * Escapes all illegal XML characters in the given string.
+     * Eg. `escape_str("I <3 you") == "I &lt;3 you"`
+     */
+    std::string escape_xml_str(const std::string& s);
+};
+
+class XMLOutputNode {
+public:
+    // Closes off the currently open XML tag.
+    ~XMLOutputNode();
+    void add_child(const std::string& child);
+private:
+    XMLOutput& manager;
 };
 
 #endif

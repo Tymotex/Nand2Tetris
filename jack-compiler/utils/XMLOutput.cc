@@ -4,6 +4,17 @@
 #include <string>
 #include <unordered_map>
 
+XMLOutputNode::~XMLOutputNode() {
+    manager.close_xml();
+}
+
+XMLOutputNode::add_child(const std::string& tag, const std::string& element) {
+}
+
+XMLOutputNode::add_child(const std::string& inner_xml) {
+    
+}
+
 std::unordered_map<char, std::string> XMLOutput::char_escape_dict = {
     {'<', "lt"},
     {'>', "gt"},
