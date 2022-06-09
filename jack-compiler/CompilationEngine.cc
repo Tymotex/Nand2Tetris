@@ -15,7 +15,8 @@ CompilationEngine::CompilationEngine(
           _vm_writer(VMWriter(vm_stream)),
           _xml_parse_tree(std::make_unique<XMLOutput>(xml_stream, true, false)),
           _class_name(class_name),
-          _uniq_counter(0) {
+          _uniq_counter_if(0),
+          _uniq_counter_while(0) {
 }
 
 CompilationEngine::~CompilationEngine() {
@@ -147,6 +148,7 @@ void CompilationEngine::compile_subroutine() {
         // `this` upfront. The `sizeof` the object is simply the number of
         // fields in the class-level symbol table.
         int mem_size = _class_symbol_table.var_count(DeclarationType::FIELD);
+        _vm_writer.write_push(VirtualMemorySegment::CONSTANT, mem_size);
         // TODO: it feels weird hard-coding these OS calls.
         _vm_writer.write_call("Memory.alloc", 1);
         _vm_writer.write_pop(VirtualMemorySegment::POINTER, 0); // TODO: duplicated alignment of this
@@ -325,10 +327,12 @@ void CompilationEngine::compile_let() {
 void CompilationEngine::compile_if() {
     _xml_parse_tree->open_xml("ifStatement");
     
-    std::string else_label =
-        "ELSE_" + std::to_string(_uniq_counter);
+    std::string if_true_label =
+        "IF_TRUE" + std::to_string(_uniq_counter_if);
+    std::string if_false_label =
+        "IF_FALSE" + std::to_string(_uniq_counter_if);
     std::string end_if_label =
-        "END_IF_" + std::to_string(_uniq_counter++);
+        "IF_END" + std::to_string(_uniq_counter_if++);
 
     // if
     xml_capture_token();
@@ -336,27 +340,29 @@ void CompilationEngine::compile_if() {
     // (expression)
     expect_token("(", "Expected start of condition for if-statement.");
     compile_expression(0);
-    _vm_writer.write_arithmetic(ArithmeticLogicOp::NOT);
     expect_token(")", "Expected end of condition for if-statement.");
 
     // { statements }
-    _vm_writer.write_if(else_label);
+    _vm_writer.write_if(if_true_label);
+    _vm_writer.write_goto(if_false_label);
+    _vm_writer.write_label(if_true_label);
     expect_token("{", "Expected start of if-statement scope.");
     compile_statements();
     expect_token("}", "Expected end of if-statement scope.");
-    _vm_writer.write_goto(end_if_label);
-    _vm_writer.write_label(else_label);
-    _vm_writer.write_label(end_if_label);
 
     // Optional: else { statements }
     _lexical_analyser->try_advance();
     if (_lexical_analyser->get_token() == "else") {
+        _vm_writer.write_goto(end_if_label);
+        _vm_writer.write_label(if_false_label);
         xml_capture_token();
         expect_token("{", "Expected start of else-statement scope.");
         compile_statements();
         expect_token("}", "Expected end of if-statement scope.");
+        _vm_writer.write_label(end_if_label);
     } else {
         _lexical_analyser->step_back();
+        _vm_writer.write_label(if_false_label);
     }
 
     _xml_parse_tree->close_xml();
@@ -368,9 +374,9 @@ void CompilationEngine::compile_while() {
     _xml_parse_tree->open_xml("whileStatement");
 
     std::string start_loop_label =
-        "WHILE_START_" + std::to_string(_uniq_counter);
+        "WHILE_EXP" + std::to_string(_uniq_counter_while);
     std::string end_loop_label =
-        "WHILE_END_" + std::to_string(_uniq_counter++);
+        "WHILE_END" + std::to_string(_uniq_counter_while++);
     
     // while
     xml_capture_token();

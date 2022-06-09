@@ -175,7 +175,8 @@ private:
     /**
      * A running counter that is embedded into labels to uniquely identify them.
      */
-    int _uniq_counter;
+    int _uniq_counter_if;
+    int _uniq_counter_while;
 
     /**
      * Throws a JackParseException if the current token is of a certain type, 

@@ -243,6 +243,9 @@ Consider `"hello world"`.
       compiledStatements2
     label END_IF
   ```
+  ```
+    
+  ```
 - `while (expression) { statements }` - very similar to how to compile if
   ```
     label WHILE_START
