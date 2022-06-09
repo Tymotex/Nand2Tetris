@@ -106,8 +106,10 @@ public:
 
     /**
      * Compiles a subroutine invocation.
+     * Using the given prefix, recursively constructs the fully qualified
+     * subroutine name.
      */
-    void compile_subroutine_invocation();
+    void compile_subroutine_invocation(const std::string& subroutine_name_prefix);
 
     /**
      * Compiles a comma-separated list of *expressions*.
@@ -124,7 +126,8 @@ public:
      * Attempts to compile a comma-separate list of variables. If it fails, then
      * return false.
      */
-    bool try_compile_trailing_variable_list();
+    bool try_compile_trailing_variable_list(const std::string data_type,
+        const std::string& decl_type);
 private:
     /**
      * Handle on the token stream producer, ie. the Jack lexical analyser.
@@ -137,8 +140,11 @@ private:
      */
     std::unique_ptr<XMLOutput> _xml_parse_tree;
 
-    std::string _translation_unit_name;
-
+    /**
+     * Name of the class. Used to namespace class members such as fields and
+     * subroutines.
+     */
+    std::string _class_name;
 
     /**
      * The module responsible for writing VM instructions.
@@ -175,6 +181,29 @@ private:
      * Dumps the current token to the XML stream.
      */
     std::string xml_capture_token();
+
+    /**
+     * Searches through the class-level and subroutine-level symbol tables for
+     * the given identifier.
+     */
+    bool is_identifier_defined(const std::string& identifier);
+
+    /**
+     * Locates the deepest symbol table that hosts the given identifier.
+     * Assumes that the given identifier exists in at least one symbol table.
+     */
+    SymbolTable& get_symbol_table_containing(const std::string& identifier);
+
+    /**
+     * Maps the declaration type to the corresponding virtual memory segment 
+     * that we expect to store the declared identifier.
+     * Eg. if we declared `var int x;`, then `decl_type_to_segment(DeclarationType::VAR)`
+     *     would map to `VirtualMemorySegment::LOCAL`. This ultimately informs 
+     *     the compiler where to read/write to `x` in RAM.
+     */
+    VirtualMemorySegment decl_type_to_segment(const DeclarationType decl_type);
+
+    void construct_string(const std::string& s);
 };
 
 class JackCompilationEngineError : public std::exception {

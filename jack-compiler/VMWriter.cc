@@ -14,14 +14,16 @@ void VMWriter::write_push(const VirtualMemorySegment& segment, const int index) 
     _vm_out << "push "
             << segment_to_str(segment)
             << " "
-            << index;
+            << index
+            << "\n";
 }
 
 void VMWriter::write_pop(const VirtualMemorySegment& segment, const int index) {
     _vm_out << "pop "
             << segment_to_str(segment)
             << " "
-            << index;
+            << index
+            << "\n";
 }
 
 void VMWriter::write_arithmetic(const ArithmeticLogicOp op_type) {
@@ -56,6 +58,18 @@ void VMWriter::write_arithmetic(const ArithmeticLogicOp op_type) {
         default:
             throw std::invalid_argument("Unknown arithmetic/logical operation type.");
     }
+}
+
+void VMWriter::write_arithmetic(const std::string& op) {
+    if (op == "+") write_arithmetic(ArithmeticLogicOp::ADD);
+    else if (op == "-") write_arithmetic(ArithmeticLogicOp::SUB);
+    else if (op == "&") write_arithmetic(ArithmeticLogicOp::AND);
+    else if (op == "|") write_arithmetic(ArithmeticLogicOp::OR);
+    else if (op == "<") write_arithmetic(ArithmeticLogicOp::LT);
+    else if (op == ">") write_arithmetic(ArithmeticLogicOp::GT);
+    else if (op == "=") write_arithmetic(ArithmeticLogicOp::EQ);
+    else throw std::invalid_argument(
+        "No direct VM mapping for operator '" + op + "'.");
 }
 
 void VMWriter::write_label(const std::string& label) {

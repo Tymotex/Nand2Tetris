@@ -41,6 +41,7 @@ public:
      * operator. 
      * Eg. given "+", the VMWriter emits the VM instruction 'add' .
      */
+    void write_arithmetic(const std::string& op);
     void write_arithmetic(const ArithmeticLogicOp op_type);
 
     /**

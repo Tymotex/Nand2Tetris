@@ -308,7 +308,7 @@ of an object on the heap. We can access `arr[i]` by simply doing: `base address 
 ie. the VM code: `push arr`, `push i`, `add`. Now, we do `pop pointer 1` to 
 align `THAT`, followed by `push that 0`, `pop x`.
 
-Constider `let a[expr1] = expr2`. 
+Consider `let a[expr1] = expr2`. 
 1. We first put `a[expr1]` onto the stack.
 2. Then, we put `expr2` on the stack by doing: compileExpression(expr2) and
 `pop temp 0`.

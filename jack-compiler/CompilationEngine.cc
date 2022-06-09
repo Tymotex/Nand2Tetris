@@ -9,12 +9,12 @@
 
 CompilationEngine::CompilationEngine(
         std::shared_ptr<LexicalAnalyser> lexical_analyser,
-        const std::string& translation_unit_name,
+        const std::string& class_name,
         std::ostream& vm_stream, std::ostream& xml_stream)
         : _lexical_analyser(lexical_analyser),
           _vm_writer(VMWriter(vm_stream)),
           _xml_parse_tree(std::make_unique<XMLOutput>(xml_stream, true, false)),
-          _translation_unit_name(translation_unit_name) {
+          _class_name(class_name) {
 }
 
 CompilationEngine::~CompilationEngine() {
@@ -29,7 +29,6 @@ void CompilationEngine::compile_class() {
 
     // Initialise the class-level symbol table to capture new fields.
     _class_symbol_table.reset();
-    // TODO: set the _className member so that the rest of the compile_xxx functions can reference it freely.
 
     // class
     xml_capture_token();
@@ -86,7 +85,7 @@ void CompilationEngine::compile_class_field_declaration() {
     std::string identifier = expect_token_type(TokenType::IDENTIFIER, "Expected an identifier for field declaration.");
 
     // Optional trailing variable list: ', varName2, varName3, ...'
-    try_compile_trailing_variable_list();
+    try_compile_trailing_variable_list(data_type, decl_type);
     
     // ;
     expect_token(";", "Unterminated field declaration.");
@@ -112,20 +111,41 @@ void CompilationEngine::compile_subroutine() {
     expect_data_type("Expected subroutine return type.");
 
     // subroutineName
-    expect_token_type(TokenType::IDENTIFIER, "Expected subroutine name.");
+    std::string subroutine_label = _class_name + "." +
+        expect_token_type(TokenType::IDENTIFIER, "Expected subroutine name.");
 
     // (parameterList)
     expect_token("(", "Expected start of parameter list.");
-    // TODO: if subroutine_decl_type is a method, then save this to the to symbol table under arguments.
+    // Methods always implicitly take in `this` as the first argument, which is
+    // also implicitly bound when it's invoked.
+    if (subroutine_decl_type == "method")
+        _subroutine_symbol_table.define("this", _class_name, "argument");
     compile_parameter_list(); 
     expect_token(")", "Expected end of parameter list.");
 
-    // TODO: generate code: 'function className.subroutineName nVars'
-    // TODO: if decl_type is method, then align this upfront.
-    // TODO: if decl_type is constructor, then construct object (invoke Memory.alloc) and align this.
+    // Generate code for declaring the VM function.
+    _vm_writer.write_function(subroutine_label, _subroutine_symbol_table.var_count(DeclarationType::ARGUMENT));
+    if (subroutine_decl_type == "method") {
+        // All methods must align `this` upfront. This means that the statements
+        // in the method body can execute with the assumption that `this` is
+        // bound correctly as a precondition.
+        _vm_writer.write_push(VirtualMemorySegment::ARGUMENT, 0);// TODO: duplicated alignment of this
+        _vm_writer.write_pop(VirtualMemorySegment::POINTER, 0);
+    } else if (subroutine_decl_type == "constructor") {
+        // All constructors must allocate the memory for the object and align
+        // `this` upfront. The `sizeof` the object is simply the number of
+        // fields in the class-level symbol table.
+        int mem_size = _class_symbol_table.var_count(DeclarationType::FIELD);
+        // TODO: it feels weird hard-coding these OS calls.
+        _vm_writer.write_call("Memory.alloc", 1);
+        _vm_writer.write_pop(VirtualMemorySegment::POINTER, 0); // TODO: duplicated alignment of this
+    }
 
     // { body }
     compile_subroutine_body();
+
+    // TODO: if we want to handle implicit `return this;`, it should be done here.
+
     _xml_parse_tree->close_xml();
 }
 
@@ -153,9 +173,12 @@ void CompilationEngine::compile_parameter_list() {
             expect_token(",", "Expected comma in parameter list.");
 
         // Parameter lists must always be of form: `type identifier` .
-        expect_data_type("Expected data type for parameter " + param_num);
+        std::string data_type =
+            expect_data_type("Expected data type for parameter " + param_num);
+        std::string identifier =
+            expect_token_type(TokenType::IDENTIFIER, "Expected identifier for parameter " + param_num);
 
-        expect_token_type(TokenType::IDENTIFIER, "Expected identifier for parameter " + param_num);
+        _subroutine_symbol_table.define(identifier, data_type, "argument");
 
         ++param_num;
     }
@@ -169,9 +192,8 @@ void CompilationEngine::compile_subroutine_body() {
     // { varDeclarations*
     expect_token("{", "Expected start of subroutine scope.");
 
-    while (_lexical_analyser->try_advance() && _lexical_analyser->get_token() == "var") {
+    while (_lexical_analyser->try_advance() && _lexical_analyser->get_token() == "var")
         compile_variable_declaration();
-    }
     _lexical_analyser->step_back();
 
     // statement* }
@@ -185,6 +207,7 @@ void CompilationEngine::compile_subroutine_body() {
 //       encountered.
 void CompilationEngine::compile_statements() {
     _xml_parse_tree->open_xml("statements");
+
     std::string curr_token;
     while (_lexical_analyser->try_advance()) {
         curr_token = _lexical_analyser->get_token();
@@ -222,7 +245,7 @@ void CompilationEngine::compile_variable_declaration() {
     std::string identifier = expect_token_type(TokenType::IDENTIFIER, "Expected identifier for variable declaration.");
 
     // Optional trailing variable list: ', varName2, varName3, ...'
-    try_compile_trailing_variable_list();
+    try_compile_trailing_variable_list(data_type, decl_type);
 
     // ;
     expect_token(";", "Unterminated variable declaration statement");
@@ -243,19 +266,59 @@ void CompilationEngine::compile_let() {
     xml_capture_token();
     
     // varName
-    expect_token_type(TokenType::IDENTIFIER, "Expected variable identifier for let statement");
+    std::string identifier = expect_token_type(TokenType::IDENTIFIER, "Expected variable identifier for let statement");
+    if (!is_identifier_defined(identifier))
+        throw JackCompilationEngineError("Assignment to undeclared variable, '" + identifier + "'.");
+    SymbolTable& symbol_table = get_symbol_table_containing(identifier);
 
     // Optional: subscript operator, '[expression]'
-    try_compile_subscript();
+    bool array_index_assignment = try_compile_subscript();
+    // Generate code to access the correct address of `varName[expression]`.
+    if (array_index_assignment) {
+        // Put the array item's location into the THAT slot.
+        // Note: we expect the index expression's value to be on the top of the
+        //       stack.
+        VirtualMemorySegment segment = // TODO: act of pushing to stack is duplicated
+            decl_type_to_segment(symbol_table.declaration_type(identifier));
+        int index = symbol_table.segment_index(identifier);
+
+        _vm_writer.write_push(segment, index); 
+        _vm_writer.write_arithmetic(ArithmeticLogicOp::ADD);
+
+        // The top of the stack should now contain the memory address of 
+        // `varName[expression]`.
+    }
     
     // =
     expect_token("=", "Expected assignment operator for let statement");
 
     // expression
     compile_expression(0);
+    // Generate code to dump the expression's value into `temp 0` if we are
+    // assigning to an array element.
+    if (array_index_assignment) 
+        _vm_writer.write_pop(VirtualMemorySegment::TEMP, 0);
     
     // ;
     expect_token(";", "Unterminated let statement.");
+
+    // Generate code to assign `expression` to `varName`. We handle the array
+    // index case, `varName[expression]`, separately.
+    // NOTE: The expression's evaluted value is expected to be at `temp 0`
+    //       for the `varName[expression]` case, otherwise it'll be at the top
+    //       of the stack.
+    if (!array_index_assignment) {
+        VirtualMemorySegment segment = // TODO: act of pushing to stack is duplicated.
+            decl_type_to_segment(symbol_table.declaration_type(identifier));
+        int index = symbol_table.segment_index(identifier);
+        _vm_writer.write_pop(segment, index);
+    } else {
+        // First, place `varName[expression]`'s address into THAT, then pop
+        // whatever was in `temp 0` into `varName[expression]`.
+        _vm_writer.write_pop(VirtualMemorySegment::POINTER, 1); 
+        _vm_writer.write_push(VirtualMemorySegment::TEMP, 0);
+        _vm_writer.write_pop(VirtualMemorySegment::THAT, 0);
+    }
 
     _xml_parse_tree->close_xml();
 }
@@ -315,18 +378,27 @@ void CompilationEngine::compile_while() {
 }
 
 // Do statements are of the form:
-//     do subroutineInvocation
+//     do subroutineInvocation;
 void CompilationEngine::compile_do() {
     // In Jack, a subroutine call is only ever present in `do` statements and
     // in expressions. Here, we are reusing the `compile_expression` algorithm
     // to compile direct subroutine calls of the form `do subroutine_call()`.
     _xml_parse_tree->open_xml("doStatement");
+    
+    // do
     xml_capture_token();
     
-    expect_token_type(TokenType::IDENTIFIER, "Expected identifier for subroutine invocation in do statement.");
-    compile_subroutine_invocation();
+    // subroutineInvocation
+    std::string identifier = expect_token_type(TokenType::IDENTIFIER, "Expected identifier for subroutine invocation in do statement.");
+    compile_subroutine_invocation(identifier);
 
+    // ;
     expect_token(";", "Unterminated do statement.");
+    
+    // Generate code to discard the value at the top of the stack. We do this
+    // because the `do` statement is used for its side effect, not its value.
+    _vm_writer.write_pop(VirtualMemorySegment::TEMP, 0);
+    
     _xml_parse_tree->close_xml();
 }
 
@@ -340,10 +412,12 @@ void CompilationEngine::compile_return() {
     xml_capture_token();
 
     // Optional: expression
+    bool has_ret_val = false;
     if (_lexical_analyser->try_advance() && _lexical_analyser->get_token() != ";") {
         // There is a return value. We now resolve the expression.
         _lexical_analyser->step_back();
         compile_expression(0);
+        has_ret_val = true;
     } else {
         _lexical_analyser->step_back();
     }
@@ -351,8 +425,10 @@ void CompilationEngine::compile_return() {
     // ;
     expect_token(";", "Unterminated return statement.");
 
-    //TODO: generate code: return.
-    // TODO: if void, we still need to push a 0.
+    // Generate code to terminate the subroutine. If no value was returned, we
+    // must still push some value to the stack. It'll simply be discarded.
+    if (!has_ret_val) _vm_writer.write_push(VirtualMemorySegment::CONSTANT, 0);
+    _vm_writer.write_return();
 
     _xml_parse_tree->close_xml();
 }
@@ -478,7 +554,16 @@ void CompilationEngine::compile_expression(int nest_level) {
         if (LexicalAnalyser::binary_operators.find(curr_token) != LexicalAnalyser::binary_operators.end()) {
             xml_capture_token();
             compile_term(nest_level);
-            // TODO: if *, then Math.multiply. if / then Math.divide.
+
+            // Note: the VM language specification does not include multiplication
+            //       and division. These are implemented by the OS.
+            if (curr_token == "*") {
+                _vm_writer.write_call("Math.multiply", 2);
+            } else if (curr_token == "/") {
+                _vm_writer.write_call("Math.divide", 2);
+            } else {
+                _vm_writer.write_arithmetic(curr_token);
+            }
         } else if (curr_token == ")" && nest_level > 0) {
             // Note: the nest_level is used to indicate whether we are in a 
             //       nested expression or not. If we are then we will 'consume'
@@ -518,16 +603,44 @@ void CompilationEngine::compile_term(int nest_level) {
             // Lookup built-in literals.
             if (LexicalAnalyser::builtin_literals.find(curr_token) == LexicalAnalyser::builtin_literals.end())
                 throw JackCompilationEngineError(*_lexical_analyser, "Invalid keyword for term '" + curr_token + "'.");
-            // TODO: generate code: true -> push 1, false/null -> push 0, this -> push pointer 0.
+
+            if (curr_token == "true")       _vm_writer.write_push(VirtualMemorySegment::CONSTANT, 1);
+            else if (curr_token == "false") _vm_writer.write_push(VirtualMemorySegment::CONSTANT, 0);
+            else if (curr_token == "null")  _vm_writer.write_push(VirtualMemorySegment::CONSTANT, 0);
+            else if (curr_token == "this")  _vm_writer.write_push(VirtualMemorySegment::POINTER, 0);
+            
             break;
         case TokenType::IDENTIFIER:
             // We need to look ahead one character to ascertain whether this
-            // term is a subroutine call or a reference to a variable.
+            // term is a subroutine call, a reference to an array element, 
+            // or a reference to a variable.
             peeked_token = _lexical_analyser->peek();
             if (peeked_token == "(" || peeked_token == ".")
-                compile_subroutine_invocation();
-            else if (peeked_token == "[")
+                compile_subroutine_invocation(curr_token);
+            else if (peeked_token == "[") {
                 try_compile_subscript();
+                
+                // TODO: this might be duplicated in compile_let.
+                // Put the array item's location into the THAT slot, then 
+                // look up its contents to then push onto the stack.
+                // Note: we expect the index expression's value to be on the top of the
+                //       stack.
+                SymbolTable& symbol_table = get_symbol_table_containing(curr_token); // TODO: act of pushing is duplicated
+                VirtualMemorySegment segment =
+                    decl_type_to_segment(symbol_table.declaration_type(curr_token));
+                int index = symbol_table.segment_index(curr_token);
+
+                _vm_writer.write_push(segment, index); 
+                _vm_writer.write_arithmetic(ArithmeticLogicOp::ADD);
+
+                _vm_writer.write_pop(VirtualMemorySegment::POINTER, 1);
+                _vm_writer.write_push(VirtualMemorySegment::THAT, 0);
+            } else {
+                SymbolTable& symbol_table = get_symbol_table_containing(curr_token); // TODO: the act of pushing a variable onto the stack is duplicated quite a lot.
+                VirtualMemorySegment segment = decl_type_to_segment(symbol_table.declaration_type(curr_token));
+                int index = symbol_table.segment_index(curr_token);
+                _vm_writer.write_push(segment, index);
+            }
             break;
         case TokenType::SYMBOL:
             if (curr_token == "(") {
@@ -543,8 +656,10 @@ void CompilationEngine::compile_term(int nest_level) {
             }
             break;
         case TokenType::INT_CONST:
+            _vm_writer.write_push(VirtualMemorySegment::CONSTANT, std::stoi(curr_token));
             break;
         case TokenType::STRING_CONST:
+            construct_string(curr_token);
             break;
         default:
             throw JackCompilationEngineError(*_lexical_analyser, "Unexpected token '" + curr_token + "'.");
@@ -553,19 +668,24 @@ void CompilationEngine::compile_term(int nest_level) {
     _xml_parse_tree->close_xml();
 }
 
-void CompilationEngine::compile_subroutine_invocation() {
+void CompilationEngine::compile_subroutine_invocation(const std::string& subroutine_name) {
     _lexical_analyser->try_advance();
+
     std::string token = _lexical_analyser->get_token();
-    xml_capture_token(); // ( or .
+
+    // ( or .
+    xml_capture_token(); 
 
     if (token == "(") {
-        compile_expression_list();
+        int num_args = compile_expression_list();
+        // Generate code to call the function.
+        _vm_writer.write_call(subroutine_name, num_args);
     } else if (token == ".") {
         // Follow the '.' chain down to the subroutine invocation.
         // Eg. if the token stream consisted of `MyClass.myMethod(...)`, then
         //     the recursive call would process `myMethod(...)`.
-        expect_token_type(TokenType::IDENTIFIER, "Expected an identifier in subroutine invocation.");
-        compile_subroutine_invocation();
+        std::string suffix = expect_token_type(TokenType::IDENTIFIER, "Expected an identifier in subroutine invocation.");
+        compile_subroutine_invocation(subroutine_name + "." + suffix);
     } else {
         throw JackCompilationEngineError(*_lexical_analyser, "Invalid subroutine invocation.");
     }
@@ -590,13 +710,12 @@ int CompilationEngine::compile_expression_list() {
         // expression, but only after the first encountered expression.
         if (num_expressions == 0) {
             _lexical_analyser->step_back();
-            compile_expression(0);
         } else if (curr_token == ",") {
             xml_capture_token();
-            compile_expression(0);
         } else {
             throw JackCompilationEngineError(*_lexical_analyser, "Expected comma between expressions.");
         }
+        compile_expression(0);
 
         ++num_expressions;
     }
@@ -617,12 +736,16 @@ bool CompilationEngine::try_compile_subscript() {
 }
 
 // Trailing variables lists are of the form: `, var1, var2, ...`
-bool CompilationEngine::try_compile_trailing_variable_list() {
+bool CompilationEngine::try_compile_trailing_variable_list(
+        const std::string data_type, const std::string& decl_type) {
     bool compiled = false;
     while (_lexical_analyser->try_advance() && _lexical_analyser->get_token() == ",") {
         xml_capture_token();
-        expect_token_type(TokenType::IDENTIFIER, "Expected an identifier for field declaration.");
+        std::string identifier = expect_token_type(TokenType::IDENTIFIER, "Expected an identifier for field declaration.");
         compiled = true;
+
+        // Record the identifier in the class-level symbol table.
+        _class_symbol_table.define(identifier, data_type, decl_type);
     }
     _lexical_analyser->step_back();
     return compiled;
@@ -661,6 +784,47 @@ std::string CompilationEngine::xml_capture_token() {
     std::string token = _lexical_analyser->get_token();
     _xml_parse_tree->form_xml(_lexical_analyser->get_token_type(), token);
     return token;
+}
+
+bool CompilationEngine::is_identifier_defined(const std::string& identifier) {
+    return _class_symbol_table.exists(identifier) ||
+        _subroutine_symbol_table.exists(identifier);
+}
+
+SymbolTable& CompilationEngine::get_symbol_table_containing(const std::string& identifier) {
+    if (_subroutine_symbol_table.exists(identifier)) return _subroutine_symbol_table;
+    else if (_class_symbol_table.exists(identifier)) return _class_symbol_table;
+
+    throw JackCompilationEngineError("Expected '" + identifier + "' to be in scope.");
+}
+
+VirtualMemorySegment CompilationEngine::decl_type_to_segment(const DeclarationType decl_type) {
+    switch (decl_type) {
+        case DeclarationType::FIELD:
+            return VirtualMemorySegment::THIS;
+        case DeclarationType::STATIC:
+            return VirtualMemorySegment::STATIC;
+        case DeclarationType::VAR:
+            return VirtualMemorySegment::LOCAL;
+        case DeclarationType::ARGUMENT:
+            return VirtualMemorySegment::ARGUMENT;
+    }
+    throw JackCompilationEngineError("Unknown declaration type.");
+}
+
+void CompilationEngine::construct_string(const std::string& s) {
+    _vm_writer.write_push(VirtualMemorySegment::CONSTANT, s.size());
+    _vm_writer.write_call("String.new", 1);
+
+    // To initialise the characters of the constructed string, we need to 
+    // repeatedly invoke the OS subroutine, `String.append`.
+    for (const char& c : s) {
+        _vm_writer.write_push(VirtualMemorySegment::CONSTANT, c);
+        _vm_writer.write_call("String.append", 1);
+        // Note: there's no need to repush `this` because `String.append` will
+        //       return it, leaving it at the top of the stack as input into the
+        //       next round of append.
+    }
 }
 
 JackCompilationEngineError::JackCompilationEngineError(const std::string& message) throw()

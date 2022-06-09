@@ -1,7 +1,7 @@
 #!/bin/sh
 # Tests that the LexicalAnalyser produces the correct token stream by comparing
 # the XML it produces against the expected token streams in the *T.expected.xml
-# files in the test-files/ directory.
+# files in the syntax-test-files/ directory.
 # Also tests that CompilationEngine produces the correct XML parse tree.
 
 # ANSI colours.
@@ -12,7 +12,7 @@ RESET='\033[0m'
 echo "Building and running Jack Compiler on all test files..."
 cmake -S . -B build || exit 1
 cmake --build build || exit 1
-for each_project in $(find test-files -maxdepth 1 -mindepth 1); do
+for each_project in $(find syntax-test-files -maxdepth 1 -mindepth 1); do
     if ! ./build/JackCompiler "$each_project" > /dev/null; then
         printf "${RED}Jack Compiler failed on project: '${each_project}'...${RESET}\n"
         exit 1
@@ -21,7 +21,7 @@ done
 
 echo "══════════ LexicalAnalyser XML Tests ══════════"
 test_round=0
-for each_file in $(find test-files | grep "\.jack$"); do
+for each_file in $(find syntax-test-files | grep "\.jack$"); do
     echo "\t═════ LexicalAnalyser Test $test_round ═════"
 
     file_directory=$(dirname $(readlink -f $each_file))
@@ -43,7 +43,7 @@ done
 
 echo "══════════ CompilationEngine XML Tests ══════════"
 test_round=0
-for each_file in $(find test-files | grep "\.jack$"); do
+for each_file in $(find syntax-test-files | grep "\.jack$"); do
     echo "\t═════ CompilationEngine Test $test_round ═════"
 
     file_directory=$(dirname $(readlink -f $each_file))

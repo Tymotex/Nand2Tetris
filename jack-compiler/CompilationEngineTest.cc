@@ -14,3 +14,5 @@ protected:
 // TEST_F(CompilationEngineTestFixture, RecordsClass) {
 //     EXPECT_EQ(1, 1);
 // }
+
+// TODO: test that 'let x = 1' fails when there is no 'var int x;'

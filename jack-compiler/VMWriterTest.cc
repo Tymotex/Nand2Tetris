@@ -15,14 +15,14 @@ TEST_F(VMWriterTestFixture, BasicPushTest) {
     vm_writer.write_push(VirtualMemorySegment::ARGUMENT, 0);
     std::string vm_code = output.str();
 
-    EXPECT_EQ(vm_code, "push argument 0");
+    EXPECT_EQ(vm_code, "push argument 0\n");
 }
 
 TEST_F(VMWriterTestFixture, BasicPopTest) {
     vm_writer.write_pop(VirtualMemorySegment::ARGUMENT, 0);
     std::string vm_code = output.str();
 
-    EXPECT_EQ(vm_code, "pop argument 0");
+    EXPECT_EQ(vm_code, "pop argument 0\n");
 }
 
 TEST_F(VMWriterTestFixture, ArithmeticLogicOperatorWriteTest) {
