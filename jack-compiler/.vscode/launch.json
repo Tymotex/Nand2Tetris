@@ -6,7 +6,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/JackCompiler",
-            "args": ["${workspaceFolder}/KeywordIdentifier"],
+            "args": ["${workspaceFolder}/code-gen-test-files/ConvertToBin/"],
             "stopAtEntry": true,
             "cwd": "${workspaceFolder}",
             "environment": [],

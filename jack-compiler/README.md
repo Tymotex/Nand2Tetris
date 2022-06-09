@@ -96,6 +96,7 @@ currently pointing at. Skip all whitespace.
 - 
 
 TODO: for the future:
+* `./build/JackCompiler non-existent` fails
 * Add for-loops to the language.
 * Add else-if or elif to the language.
 * Instead of `function`, have `static method` instead.

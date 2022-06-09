@@ -48,6 +48,7 @@ void SymbolTable::define(const std::string& name, const std::string& data_type,
     std::cout << Colour::GREEN
               << "Defined symbol: ("
               << name << ", " << data_type << ", " << str_declaration_type(declaration_type)
+              << ", index=" << segment_index(name)
               << ")\n"
               << Colour::RESET;
 }

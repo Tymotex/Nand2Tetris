@@ -127,7 +127,15 @@ public:
      * return false.
      */
     bool try_compile_trailing_variable_list(const std::string data_type,
-        const std::string& decl_type);
+        const std::string& decl_type, const bool is_subroutine_scope);
+
+    /**
+     * Recursive helper to resolve arbitrary depth of '.' chaining in subroutine
+     * invocation.
+     * Eg. Compiles `foo.bar.baz()`.
+     */
+    void compile_subroutine_invocation_recursive(
+        const std::string& first_token, const std::string& subroutine_name_prefix, int depth);
 private:
     /**
      * Handle on the token stream producer, ie. the Jack lexical analyser.
@@ -163,6 +171,11 @@ private:
      * `var` or received as an argument.
      */
     SymbolTable _subroutine_symbol_table;
+
+    /**
+     * A running counter that is embedded into labels to uniquely identify them.
+     */
+    int _uniq_counter;
 
     /**
      * Throws a JackParseException if the current token is of a certain type, 

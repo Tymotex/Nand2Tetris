@@ -14,7 +14,8 @@ CompilationEngine::CompilationEngine(
         : _lexical_analyser(lexical_analyser),
           _vm_writer(VMWriter(vm_stream)),
           _xml_parse_tree(std::make_unique<XMLOutput>(xml_stream, true, false)),
-          _class_name(class_name) {
+          _class_name(class_name),
+          _uniq_counter(0) {
 }
 
 CompilationEngine::~CompilationEngine() {
@@ -84,14 +85,14 @@ void CompilationEngine::compile_class_field_declaration() {
     // varName
     std::string identifier = expect_token_type(TokenType::IDENTIFIER, "Expected an identifier for field declaration.");
 
+    // Record the identifier in the class-level symbol table.
+    _class_symbol_table.define(identifier, data_type, decl_type);
+
     // Optional trailing variable list: ', varName2, varName3, ...'
-    try_compile_trailing_variable_list(data_type, decl_type);
+    try_compile_trailing_variable_list(data_type, decl_type, false);
     
     // ;
     expect_token(";", "Unterminated field declaration.");
-
-    // Record the identifier in the class-level symbol table.
-    _class_symbol_table.define(identifier, data_type, decl_type);
     
     _xml_parse_tree->close_xml();
 }
@@ -123,8 +124,18 @@ void CompilationEngine::compile_subroutine() {
     compile_parameter_list(); 
     expect_token(")", "Expected end of parameter list.");
 
+    // Begin compilation for subroutine body.
+    _xml_parse_tree->open_xml("subroutineBody");
+
+    // { varDeclarations*
+    expect_token("{", "Expected start of subroutine scope.");
+
+    while (_lexical_analyser->try_advance() && _lexical_analyser->get_token() == "var")
+        compile_variable_declaration();
+    _lexical_analyser->step_back();
+
     // Generate code for declaring the VM function.
-    _vm_writer.write_function(subroutine_label, _subroutine_symbol_table.var_count(DeclarationType::ARGUMENT));
+    _vm_writer.write_function(subroutine_label, _subroutine_symbol_table.var_count(DeclarationType::VAR));
     if (subroutine_decl_type == "method") {
         // All methods must align `this` upfront. This means that the statements
         // in the method body can execute with the assumption that `this` is
@@ -141,8 +152,11 @@ void CompilationEngine::compile_subroutine() {
         _vm_writer.write_pop(VirtualMemorySegment::POINTER, 0); // TODO: duplicated alignment of this
     }
 
-    // { body }
-    compile_subroutine_body();
+    // statement* }
+    compile_statements();
+    expect_token("}", "Expected end of subroutine scope.");
+
+    _xml_parse_tree->close_xml();
 
     // TODO: if we want to handle implicit `return this;`, it should be done here.
 
@@ -184,31 +198,13 @@ void CompilationEngine::compile_parameter_list() {
     }
 }
 
-// Subroutine bodies are of the form:
-//     { varDeclarations* statement* }
-void CompilationEngine::compile_subroutine_body() {
-    _xml_parse_tree->open_xml("subroutineBody");
-
-    // { varDeclarations*
-    expect_token("{", "Expected start of subroutine scope.");
-
-    while (_lexical_analyser->try_advance() && _lexical_analyser->get_token() == "var")
-        compile_variable_declaration();
-    _lexical_analyser->step_back();
-
-    // statement* }
-    compile_statements();
-    expect_token("}", "Expected end of subroutine scope.");
-
-    _xml_parse_tree->close_xml();
-}
-
 // Note: `compile_statements` will terminate when the closing brace character is
 //       encountered.
 void CompilationEngine::compile_statements() {
     _xml_parse_tree->open_xml("statements");
 
     std::string curr_token;
+    int uniq_counter = 0;
     while (_lexical_analyser->try_advance()) {
         curr_token = _lexical_analyser->get_token();
         if (curr_token == "}") {
@@ -244,14 +240,14 @@ void CompilationEngine::compile_variable_declaration() {
     // varName
     std::string identifier = expect_token_type(TokenType::IDENTIFIER, "Expected identifier for variable declaration.");
 
+    // Record the identifier in the symbol table.
+    _subroutine_symbol_table.define(identifier, data_type, decl_type);
+
     // Optional trailing variable list: ', varName2, varName3, ...'
-    try_compile_trailing_variable_list(data_type, decl_type);
+    try_compile_trailing_variable_list(data_type, decl_type, true);
 
     // ;
     expect_token(";", "Unterminated variable declaration statement");
-
-    // Record the identifier in the symbol table.
-    _subroutine_symbol_table.define(identifier, data_type, decl_type);
 
     _xml_parse_tree->close_xml();
 }
@@ -329,18 +325,28 @@ void CompilationEngine::compile_let() {
 void CompilationEngine::compile_if() {
     _xml_parse_tree->open_xml("ifStatement");
     
+    std::string else_label =
+        "ELSE_" + std::to_string(_uniq_counter);
+    std::string end_if_label =
+        "END_IF_" + std::to_string(_uniq_counter++);
+
     // if
     xml_capture_token();
     
     // (expression)
     expect_token("(", "Expected start of condition for if-statement.");
     compile_expression(0);
+    _vm_writer.write_arithmetic(ArithmeticLogicOp::NOT);
     expect_token(")", "Expected end of condition for if-statement.");
 
     // { statements }
+    _vm_writer.write_if(else_label);
     expect_token("{", "Expected start of if-statement scope.");
     compile_statements();
     expect_token("}", "Expected end of if-statement scope.");
+    _vm_writer.write_goto(end_if_label);
+    _vm_writer.write_label(else_label);
+    _vm_writer.write_label(end_if_label);
 
     // Optional: else { statements }
     _lexical_analyser->try_advance();
@@ -360,19 +366,29 @@ void CompilationEngine::compile_if() {
 //     while (expression) { statements }
 void CompilationEngine::compile_while() {
     _xml_parse_tree->open_xml("whileStatement");
+
+    std::string start_loop_label =
+        "WHILE_START_" + std::to_string(_uniq_counter);
+    std::string end_loop_label =
+        "WHILE_END_" + std::to_string(_uniq_counter++);
     
     // while
     xml_capture_token();
+    _vm_writer.write_label(start_loop_label);
 
     // (expression)
     expect_token("(", "Expected start of condition for while-loop.");
     compile_expression(0);
     expect_token(")", "Expected end of condition for while-loop.");
+    _vm_writer.write_arithmetic(ArithmeticLogicOp::NOT);
+    _vm_writer.write_if(end_loop_label);
 
     // { statements }
     expect_token("{", "Expected start of while-loop scope.");
     compile_statements();
     expect_token("}", "Expected end of while-loop scope.");
+    _vm_writer.write_goto(start_loop_label);
+    _vm_writer.write_label(end_loop_label);
 
     _xml_parse_tree->close_xml();
 }
@@ -604,10 +620,16 @@ void CompilationEngine::compile_term(int nest_level) {
             if (LexicalAnalyser::builtin_literals.find(curr_token) == LexicalAnalyser::builtin_literals.end())
                 throw JackCompilationEngineError(*_lexical_analyser, "Invalid keyword for term '" + curr_token + "'.");
 
-            if (curr_token == "true")       _vm_writer.write_push(VirtualMemorySegment::CONSTANT, 1);
-            else if (curr_token == "false") _vm_writer.write_push(VirtualMemorySegment::CONSTANT, 0);
-            else if (curr_token == "null")  _vm_writer.write_push(VirtualMemorySegment::CONSTANT, 0);
-            else if (curr_token == "this")  _vm_writer.write_push(VirtualMemorySegment::POINTER, 0);
+            if (curr_token == "true") {
+                // Pushing 1 then negating will produce -1: 1111111111111111.
+                _vm_writer.write_push(VirtualMemorySegment::CONSTANT, 0);
+                _vm_writer.write_arithmetic(ArithmeticLogicOp::NOT);
+            } else if (curr_token == "false")
+                _vm_writer.write_push(VirtualMemorySegment::CONSTANT, 0);
+            else if (curr_token == "null")
+                _vm_writer.write_push(VirtualMemorySegment::CONSTANT, 0);
+            else if (curr_token == "this")
+                _vm_writer.write_push(VirtualMemorySegment::POINTER, 0);
             
             break;
         case TokenType::IDENTIFIER:
@@ -651,6 +673,10 @@ void CompilationEngine::compile_term(int nest_level) {
                 // immediately follow. Note that `compile_term` can also
                 // recursively resolve sub-expressions.
                 compile_term(nest_level);
+                if (curr_token == "-")
+                    _vm_writer.write_arithmetic(ArithmeticLogicOp::NEG);
+                else if (curr_token == "~")
+                    _vm_writer.write_arithmetic(ArithmeticLogicOp::NOT);
             } else {
                 throw JackCompilationEngineError(*_lexical_analyser, "Unexpected expression symbol '" + curr_token + "'.");
             }
@@ -668,24 +694,48 @@ void CompilationEngine::compile_term(int nest_level) {
     _xml_parse_tree->close_xml();
 }
 
-void CompilationEngine::compile_subroutine_invocation(const std::string& subroutine_name) {
+void CompilationEngine::compile_subroutine_invocation_recursive(
+        const std::string& first_token, const std::string& subroutine_name, int depth) {
+
+}
+
+void CompilationEngine::compile_subroutine_invocation(
+        const std::string& first_token) {
     _lexical_analyser->try_advance();
 
-    std::string token = _lexical_analyser->get_token();
-
     // ( or .
+    std::string next_token = _lexical_analyser->get_token();
     xml_capture_token(); 
 
-    if (token == "(") {
+    if (next_token == "(") {
+        // If the fully qualified subroutine name is only 1 word long, then
+        // assume that the method is to be invoked on `this`.
+        _vm_writer.write_push(VirtualMemorySegment::POINTER, 0);
         int num_args = compile_expression_list();
-        // Generate code to call the function.
-        _vm_writer.write_call(subroutine_name, num_args);
-    } else if (token == ".") {
-        // Follow the '.' chain down to the subroutine invocation.
-        // Eg. if the token stream consisted of `MyClass.myMethod(...)`, then
-        //     the recursive call would process `myMethod(...)`.
+        _vm_writer.write_call(_class_name + "." + first_token,
+            num_args + 1);
+    } else if (next_token == ".") {
+        // Follow the '.' chain down to the subroutine invocation. The first
+        // part of the fully qualified subroutine invocation is the class_name
         std::string suffix = expect_token_type(TokenType::IDENTIFIER, "Expected an identifier in subroutine invocation.");
-        compile_subroutine_invocation(subroutine_name + "." + suffix);
+        expect_token("(", "Expected the start of a parameter list");
+
+        // If the `first_token` is not an identifier, then we assume that it
+        // refers to a static function, otherwise it's a method invocation.
+        if (is_identifier_defined(first_token)) {
+            const std::string& obj = first_token;
+            SymbolTable& symbol_table = get_symbol_table_containing(obj);
+            const std::string& class_name = symbol_table.data_type(obj);
+            VirtualMemorySegment segment = decl_type_to_segment(symbol_table.declaration_type(obj)); // TODO: duplicated push
+            int index = symbol_table.segment_index(obj);
+            _vm_writer.write_push(segment, index);
+            int num_args = compile_expression_list();
+            _vm_writer.write_call(class_name + "." + suffix, num_args + 1);
+        } else {
+            const std::string& class_name = first_token;
+            int num_args = compile_expression_list();
+            _vm_writer.write_call(class_name + "." + suffix, num_args);
+        }
     } else {
         throw JackCompilationEngineError(*_lexical_analyser, "Invalid subroutine invocation.");
     }
@@ -737,7 +787,8 @@ bool CompilationEngine::try_compile_subscript() {
 
 // Trailing variables lists are of the form: `, var1, var2, ...`
 bool CompilationEngine::try_compile_trailing_variable_list(
-        const std::string data_type, const std::string& decl_type) {
+        const std::string data_type, const std::string& decl_type,
+        const bool is_subroutine_scope) {
     bool compiled = false;
     while (_lexical_analyser->try_advance() && _lexical_analyser->get_token() == ",") {
         xml_capture_token();
@@ -745,7 +796,9 @@ bool CompilationEngine::try_compile_trailing_variable_list(
         compiled = true;
 
         // Record the identifier in the class-level symbol table.
-        _class_symbol_table.define(identifier, data_type, decl_type);
+        SymbolTable& symbol_table = (is_subroutine_scope) ?
+            _subroutine_symbol_table : _class_symbol_table;
+        symbol_table.define(identifier, data_type, decl_type);
     }
     _lexical_analyser->step_back();
     return compiled;
@@ -794,7 +847,6 @@ bool CompilationEngine::is_identifier_defined(const std::string& identifier) {
 SymbolTable& CompilationEngine::get_symbol_table_containing(const std::string& identifier) {
     if (_subroutine_symbol_table.exists(identifier)) return _subroutine_symbol_table;
     else if (_class_symbol_table.exists(identifier)) return _class_symbol_table;
-
     throw JackCompilationEngineError("Expected '" + identifier + "' to be in scope.");
 }
 
@@ -817,10 +869,10 @@ void CompilationEngine::construct_string(const std::string& s) {
     _vm_writer.write_call("String.new", 1);
 
     // To initialise the characters of the constructed string, we need to 
-    // repeatedly invoke the OS subroutine, `String.append`.
+    // repeatedly invoke the OS subroutine, `String.appendChar`.
     for (const char& c : s) {
         _vm_writer.write_push(VirtualMemorySegment::CONSTANT, c);
-        _vm_writer.write_call("String.append", 1);
+        _vm_writer.write_call("String.appendChar", 2);
         // Note: there's no need to repush `this` because `String.append` will
         //       return it, leaving it at the top of the stack as input into the
         //       next round of append.
