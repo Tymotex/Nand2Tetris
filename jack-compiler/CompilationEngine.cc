@@ -23,8 +23,13 @@ CompilationEngine::~CompilationEngine() {
 
 // Class declarations are of the form:
 //     class className { body }
+// Note: no code is generated from a class declaration alone.
 void CompilationEngine::compile_class() {
     _xml_parse_tree->open_xml("class");
+
+    // Initialise the class-level symbol table to capture new fields.
+    _class_symbol_table.reset();
+    // TODO: set the _className member so that the rest of the compile_xxx functions can reference it freely.
 
     // class
     xml_capture_token();
@@ -86,7 +91,7 @@ void CompilationEngine::compile_class_field_declaration() {
     // ;
     expect_token(";", "Unterminated field declaration.");
 
-    // Record the identifier in the symbol table.
+    // Record the identifier in the class-level symbol table.
     _class_symbol_table.define(identifier, data_type, decl_type);
     
     _xml_parse_tree->close_xml();
@@ -97,8 +102,11 @@ void CompilationEngine::compile_class_field_declaration() {
 void CompilationEngine::compile_subroutine() {
     _xml_parse_tree->open_xml("subroutineDec");
 
+    // Initialise the subroutine-level symbol table.
+    _subroutine_symbol_table.reset();
+
     // constructor|function|method
-    xml_capture_token();
+    std::string subroutine_decl_type = xml_capture_token();
 
     // type
     expect_data_type("Expected subroutine return type.");
@@ -108,8 +116,13 @@ void CompilationEngine::compile_subroutine() {
 
     // (parameterList)
     expect_token("(", "Expected start of parameter list.");
-    compile_parameter_list();
+    // TODO: if subroutine_decl_type is a method, then save this to the to symbol table under arguments.
+    compile_parameter_list(); 
     expect_token(")", "Expected end of parameter list.");
+
+    // TODO: generate code: 'function className.subroutineName nVars'
+    // TODO: if decl_type is method, then align this upfront.
+    // TODO: if decl_type is constructor, then construct object (invoke Memory.alloc) and align this.
 
     // { body }
     compile_subroutine_body();
@@ -121,6 +134,7 @@ void CompilationEngine::compile_subroutine() {
 //     (type identifier1, type identifier2, ...)
 void CompilationEngine::compile_parameter_list() {
     _xml_parse_tree->open_xml("parameterList");
+
     std::string curr_token = "";
     int param_num = 1;
     while (_lexical_analyser->try_advance()) {
@@ -199,19 +213,23 @@ void CompilationEngine::compile_variable_declaration() {
     _xml_parse_tree->open_xml("varDec");
     
     // var
-    xml_capture_token();
+    std::string decl_type = xml_capture_token();
 
     // type
-    expect_data_type("Expected data type for variable declaration.");
+    std::string data_type = expect_data_type("Expected data type for variable declaration.");
 
     // varName
-    expect_token_type(TokenType::IDENTIFIER, "Expected identifier for variable declaration.");
+    std::string identifier = expect_token_type(TokenType::IDENTIFIER, "Expected identifier for variable declaration.");
 
     // Optional trailing variable list: ', varName2, varName3, ...'
     try_compile_trailing_variable_list();
 
     // ;
     expect_token(";", "Unterminated variable declaration statement");
+
+    // Record the identifier in the symbol table.
+    _subroutine_symbol_table.define(identifier, data_type, decl_type);
+
     _xml_parse_tree->close_xml();
 }
 
@@ -332,6 +350,9 @@ void CompilationEngine::compile_return() {
 
     // ;
     expect_token(";", "Unterminated return statement.");
+
+    //TODO: generate code: return.
+    // TODO: if void, we still need to push a 0.
 
     _xml_parse_tree->close_xml();
 }
@@ -457,6 +478,7 @@ void CompilationEngine::compile_expression(int nest_level) {
         if (LexicalAnalyser::binary_operators.find(curr_token) != LexicalAnalyser::binary_operators.end()) {
             xml_capture_token();
             compile_term(nest_level);
+            // TODO: if *, then Math.multiply. if / then Math.divide.
         } else if (curr_token == ")" && nest_level > 0) {
             // Note: the nest_level is used to indicate whether we are in a 
             //       nested expression or not. If we are then we will 'consume'
@@ -473,46 +495,59 @@ void CompilationEngine::compile_expression(int nest_level) {
     }
 }
 
+// A term can be one of the following sets:
+// - Built-in identifiers: { true, false, this, null } 
+// - An integer constant like `42` or string constant like "hello"
+// - A local variable/argument or instance/static class variable
+// - A subroutine invocation.
+// - An array element accessed with the subscript operator
+// - A unary operator acting on a sub-term, eg. `-1` or `~func(2, 3)`
+// - A sub-expression, eg. `(1 + 2)`
 void CompilationEngine::compile_term(int nest_level) {
     _xml_parse_tree->open_xml("term");
     _lexical_analyser->try_advance();
+
     xml_capture_token();
 
     std::string curr_token = _lexical_analyser->get_token();
     std::string peeked_token;
     TokenType token_type = _lexical_analyser->token_type();
 
-
     switch (token_type) {
         case TokenType::KEYWORD:
+            // Lookup built-in literals.
             if (LexicalAnalyser::builtin_literals.find(curr_token) == LexicalAnalyser::builtin_literals.end())
                 throw JackCompilationEngineError(*_lexical_analyser, "Invalid keyword for term '" + curr_token + "'.");
+            // TODO: generate code: true -> push 1, false/null -> push 0, this -> push pointer 0.
             break;
         case TokenType::IDENTIFIER:
             // We need to look ahead one character to ascertain whether this
             // term is a subroutine call or a reference to a variable.
             peeked_token = _lexical_analyser->peek();
-            if (peeked_token == "(" || peeked_token == ".") {
-                // Compile subroutine call.
+            if (peeked_token == "(" || peeked_token == ".")
                 compile_subroutine_invocation();
-            } else if (peeked_token == "[") {
-                // Compile subscript operator on variable.
+            else if (peeked_token == "[")
                 try_compile_subscript();
-            }
             break;
         case TokenType::SYMBOL:
             if (curr_token == "(") {
-                // Compile a sub-expression.
+                // This term is a sub-expression with further terms.
                 compile_expression(nest_level + 1);
             } else if (LexicalAnalyser::unary_operators.find(curr_token) != LexicalAnalyser::unary_operators.end()) {
                 // When a unary operator is encountered, we expect a term to 
-                // immediately follow.
+                // immediately follow. Note that `compile_term` can also
+                // recursively resolve sub-expressions.
                 compile_term(nest_level);
             } else {
                 throw JackCompilationEngineError(*_lexical_analyser, "Unexpected expression symbol '" + curr_token + "'.");
             }
             break;
+        case TokenType::INT_CONST:
+            break;
+        case TokenType::STRING_CONST:
+            break;
         default:
+            throw JackCompilationEngineError(*_lexical_analyser, "Unexpected token '" + curr_token + "'.");
             break;
     }
     _xml_parse_tree->close_xml();

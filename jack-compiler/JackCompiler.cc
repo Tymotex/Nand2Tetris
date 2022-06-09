@@ -13,6 +13,7 @@ void translate_jack_file_to_vm(const std::string& path);
 // Prints verbose lexical analyser output.
 void show_tokeniser_debug_info(std::shared_ptr<LexicalAnalyser> lexical_analyser);
 
+// TODO: "If no path is specified, the compiler operates on the current folder."
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         std::cerr << "Insufficient arguments. Please supply a path "

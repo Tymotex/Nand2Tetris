@@ -14,7 +14,7 @@ cmake -S . -B build || exit 1
 cmake --build build || exit 1
 for each_project in $(find test-files -maxdepth 1 -mindepth 1); do
     if ! ./build/JackCompiler "$each_project" > /dev/null; then
-        printf "${RED}Jack Compiler failed...${RESET}\n"
+        printf "${RED}Jack Compiler failed on project: '${each_project}'...${RESET}\n"
         exit 1
     fi
 done
