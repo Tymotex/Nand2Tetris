@@ -96,9 +96,11 @@ currently pointing at. Skip all whitespace.
 - 
 
 TODO: for the future:
+* Clean up this file... Distill it to the most important parts.
 * `./build/JackCompiler non-existent` fails
 * Add for-loops to the language.
 * Add else-if or elif to the language.
+* Add multi-threading so that all files get operated on at once. Do some profiling to see if this actually helps
 * Instead of `function`, have `static method` instead.
 * Support or catch & disallow the case of accessing a field of an object directly, eg. `foo.bar`.
 * Check return types match the subroutine signature.

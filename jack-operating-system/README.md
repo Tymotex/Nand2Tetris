@@ -68,7 +68,7 @@ The string can be resized if length would exceed max length.
         def int_to_string(val):
             lastDigit = val % 10
             c = character representing lastDigit
-            if (val < 10>)
+            if (val < 10)
                 return c (as string)
             else 
                 return int_to_string(val / 10).appendChar(c)
