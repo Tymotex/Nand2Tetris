@@ -102,6 +102,8 @@ heap (address 2048 in RAM).
 
 A linked list tracks free memory segments. Initially, this list will consist of
 1 node whose size is the entire heap.
+Each node begins with 2 housekeeping fields: `length` and `next`, the address of
+the next free memory segment.
 
 1. When a memory block is to be allocated, the list is searched for the best-fit or
 first-fit. A free memory segment must have a size greater than or equal to the
