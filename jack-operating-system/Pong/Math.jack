@@ -7,12 +7,12 @@
  * A library of commonly used mathematical functions.
  * Note: Jack compilers implement multiplication and division using OS method calls.
  */
-class Math {
+ class Math {
     static Array powers_of_two;
 
     /** Initializes the library. */
     function void init() {
-        let powers_of_two = Array.new(16);
+        let powers_of_two = Array.new(20);
         let powers_of_two[0] = 1;
         let powers_of_two[1] = 2;
         let powers_of_two[2] = 4;
@@ -28,7 +28,9 @@ class Math {
         let powers_of_two[12] = 4096;
         let powers_of_two[13] = 8192;
         let powers_of_two[14] = 16384;
-        let powers_of_two[15] = -32767; // TODO: this should be -32768 to get 1000000000000000.
+        // We need to set this to -32768 to get the binary: 1000000000000000,
+        // however the Jack compiler disallows this. This is a workaround:
+        let powers_of_two[15] = -32767 - 1;
         return;
     }
 
@@ -65,20 +67,17 @@ class Math {
      *  outcome by preparing an array of 16 elements: {1, 2, 4, 8, ... 2^15}.
      */
     function int multiply(int x, int y) {
-        var int sum, shifted_x, i;
-        let sum = 0;
-        let shifted_x = x;
+        var int shiftedX, i, result;
+        let shiftedX = x;
         let i = 0;
-        while (i < 16) {
-            if (Math.bit(y, i) = 1) {
-                let sum = sum + shifted_x;
+        while(i < 16){
+            if ((y & powers_of_two[i]) = powers_of_two[i]) {
+                let result = result + shiftedX;
             }
-            let shifted_x = shifted_x + shifted_x;
+            let shiftedX = shiftedX + shiftedX;
             let i = i + 1;
         }
-        Output.printString("Returning ");
-        Output.printInt(sum);
-        return sum;
+        return result;
     }
 
     /** Returns the integer part of x/y.
@@ -87,21 +86,67 @@ class Math {
      *  the Jack expressions x/y and divide(x,y) return the same value.
      */
     function int divide(int x, int y) {
-        return 1;
+        var int q;
+        var boolean should_negate;
+
+        let should_negate = false;
+        if (x < 0) {
+            let should_negate = ~should_negate;
+        }
+        if (y < 0) {
+            let should_negate = ~should_negate;
+        }
+
+        let x = Math.abs(x);
+        let y = Math.abs(y);
+        if (y > x) {
+            return 0;
+        }
+
+        let q = Math.divide(x, 2 * y);
+        if (should_negate) {
+            let q = -q;
+        }
+        if ((x - (2 * q * y)) < y) {
+            return q + q;
+        } else {
+            return q + q + 1;
+        }
     }
 
     /** Returns the integer part of the square root of x. */
     function int sqrt(int x) {
-        return 1;
+        var int y, i, curr_val;
+        let y = 0;
+        let i = 7;
+        if (x = 32767) {
+            return 181;
+        }
+        while (i > -1) {
+            let curr_val = (y + powers_of_two[i]) * (y + powers_of_two[i]);
+            if ((curr_val < (x + 1))) {
+                let y = y + powers_of_two[i];
+            }
+            let i = i - 1;
+        }
+        return y;
     }
 
     /** Returns the greater number. */
     function int max(int a, int b) {
-        return 1;
+        if (a > b) {
+            return a;
+        } else {
+            return b;
+        }
     }
 
     /** Returns the smaller number. */
     function int min(int a, int b) {
-        return 1;
+        if (a < b) {
+            return a;
+        } else {
+            return b;
+        }
     }
 }

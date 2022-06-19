@@ -93,7 +93,7 @@ class Keyboard {
         var int val;
         var String line;
         let line = Keyboard.readLine(message);
-        let val = String.intValue(line);
+        let val = line.intValue();
         return val;
     }
 }
