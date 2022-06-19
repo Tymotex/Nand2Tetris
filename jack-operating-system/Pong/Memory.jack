@@ -1,0 +1,111 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/12/Memory.jack
+
+/**
+ * This library provides two services: direct access to the computer's main
+ * memory (RAM), and allocation and recycling of memory blocks. The Hack RAM
+ * consists of 32,768 words, each holding a 16-bit binary number.
+ */ 
+class Memory {
+    static Array RAM;
+    static int heapBaseAddress;
+    static int heapSize;
+
+    static int firstNodeAddress;
+    static int lastNodeAddress;
+
+    /** Initializes the class. */
+    function void init() {
+        let heapBaseAddress = 2048;
+        let heapSize = 16384 - 2048;
+        let RAM = 0;
+
+        // Mark the entirety of the heap as a single free memory region.
+        // The first value of each node contains the size of the free memory
+        // region. The second value contains the pointer to the next free memory
+        // region that is a candidate for allocation. Initially, this would be
+        // 0, representing the end of the list.
+        do Memory.poke(heapBaseAddress, heapSize);
+        do Memory.poke(heapBaseAddress + 1, 0);
+        let firstNodeAddress = heapBaseAddress;
+        let lastNodeAddress = heapBaseAddress;
+        return;
+    }
+
+    /** Returns the RAM value at the given address. */
+    function int peek(int address) {
+        return RAM[address];
+    }
+
+    /** Sets the RAM value at the given address to the given value. */
+    function void poke(int address, int value) {
+        let RAM[address] = value;
+        return;
+    }
+
+    // Assumes there is always free space. Yup... glad this is not an industry
+    // standard operating system.
+    function int getFirstFit(int startingAddress, int size) {
+        // Starting at the heap base address, follow the `next` links until
+        // the first free memory region with a capacity of at least `size + 2` 
+        // is encountered.
+        var int currBaseAddress, currSize, nextBaseAddress, freeBaseAddress;
+
+        let currBaseAddress = startingAddress;
+        let currSize = Memory.peek(currBaseAddress);
+        let nextBaseAddress = Memory.peek(currBaseAddress + 1);
+        
+        if (currSize > (size + 1)) {
+            // If we're occupying the first node, then we must update the
+            // first node memory address after deducting `size + 2` from the
+            // current node.
+            if (currBaseAddress = firstNodeAddress){
+                do Memory.poke(currBaseAddress, size + 2);
+                do Memory.poke(currBaseAddress + 1, 0);
+                let firstNodeAddress = firstNodeAddress + size + 2;
+                do Memory.poke(firstNodeAddress, currSize - (size + 2));
+                do Memory.poke(firstNodeAddress + 1, 0);
+            }
+            return currBaseAddress;
+        } else {
+            // Check the next node in the list. Remember, this assumes the
+            // heap always has sufficient space and therefore will never go
+            // beyond the end of the list.
+            let freeBaseAddress = Memory.getFirstFit(size, nextBaseAddress);
+
+            // If the free node that was identified was the next node in the
+            // list, then we need to update the current node's next pointer to
+            // the correct memory address after size deductions on that next
+            // node.
+            if (freeBaseAddress = nextBaseAddress) {
+                do Memory.poke(currBaseAddress + 1, currBaseAddress + size + 2);
+            }
+            return freeBaseAddress;
+        }
+    }
+
+    /** Finds an available RAM block of the given size and returns
+     *  a reference to its base address. Uses first-fit heuristics.
+     *  Note: the VM spec specifies that the stack be mapped onto the address
+     *        space: [256, 2048), so we can start the heap space at 2048
+     *        onwards.
+     */
+    function int alloc(int size) {
+        // Find the first memory segment whose capacity is equal to `size + 2`.
+        var int freeBlockAddress;
+        let freeBlockAddress = Memory.getFirstFit(firstNodeAddress, size);
+        return freeBlockAddress;
+    }
+
+    /** De-allocates the given object (cast as an array) by making
+     *  it available for future allocations. */
+    function void deAlloc(Array o) {
+        // Append to the end of the free memory region list.
+        // Point the last node's next field to the deallocated block.
+        do Memory.poke(lastNodeAddress + 1, o);
+        let lastNodeAddress = o;
+        return;
+    }    
+}
