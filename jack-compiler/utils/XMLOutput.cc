@@ -51,7 +51,6 @@ void XMLOutput::close_xml() {
         std::cout << "</" + closing_element + ">\n";
 }
 
-// TODO: remove. The std::ostream destructor handles stream closure already.
 void XMLOutput::close() {
 }
 

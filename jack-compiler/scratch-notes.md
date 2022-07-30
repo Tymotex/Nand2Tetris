@@ -1,59 +1,8 @@
-# Jack Compiler
-
-A Jack compiler, written in C++. Jack is an LL(1) object-oriented language.
-The Jack compilation model works in two stages, the first involves using this
-compiler binary to generate VM code that can be run by the Jack VM (in the same
-fashion that Java compilers convert Java source to bytecode which can be 
-executed by the JVM), then the VM is mapped to the hardware platform's assembly
-language, then finally to machine code by the assembler.
-
-```bash
-# Build and run
-cmake -S . -b build   # Generate the cross-platform build system (make sure to install CMake).
-cmake --build build   # Produce build files
-
-./build/JackCompiler <file>        # Translates a single .jack file.
-./build/JackCompiler <directory>   # Translates all .jack files in the given directory.
-./build/JackCompiler               # Same as the above, but uses the current directory.
-```
-
-By default, `JackCompiler` outputs VM code to files along the same path as the 
-input `.jack` source files.
-
-To run tests for the compiler:
-
-```bash
-# Run integration tests.
-sh SyntaxAnalysisTest.sh
-
-# ... or
-chmod +x SyntaxAnalysisTest.sh
-./SyntaxAnalysisTest.sh
-
-# Run unit tests.
-cmake --build build
-cd build && ctest --verbose   # The --verbose option outputs GoogleTest's test failure messages.
-```
 
 Lexical analysis: all tokens are either *keywords*, *symbols*, *integer literals*, *string literals* or *identifiers*.
 
 Grammar: 
 * Defines the expected form for constructs like let statements, if-statements, while loops, etc.
-
-### Plan:
-
-LexicalAnalyser
-* Finish this first
-* JackCompiler loops through this, then for the current token decides which
-  method of CompilationEngine to call.
-  + CompilationEngine also has a reference to the SAME LexicalAnalyser and will continue
-    to advance it forward in order to do recursive descent.
-
-JackCompiler
-* This will contain the while(has more tokens) advance, and will have a switch-case
-  stack that determines what CompilationEngine method to call.
-CompilationEngine
-* Recursive descent.
 
 ### Implementation Ideas:
 
@@ -95,54 +44,6 @@ currently pointing at. Skip all whitespace.
   + Caveat: what if there is no whitespace after the number?
 - 
 
-TODO: for the future:
-* Clean up this file... Distill it to the most important parts.
-* `./build/JackCompiler non-existent` fails
-* Add for-loops to the language.
-* Add else-if or elif to the language.
-* Add multi-threading so that all files get operated on at once. Do some profiling to see if this actually helps
-* Instead of `function`, have `static method` instead.
-* Support or catch & disallow the case of accessing a field of an object directly, eg. `foo.bar`.
-* Check return types match the subroutine signature.
-* Make it so that you don't have to `return this;`
-* CLI argument processing. Make it optionally output XML.
-  * Make it optional to output *T.xml
-* Write up an explanation of how you implemented the compiler and what data structures you used and how your tokenisation and parsing algorithms work.
-* There should be logic preventing multiple classes per file and nested classes.
-* Disallow nested subroutines.
-* Disallow integer constant overflow/underflow.
-- 
-* Investigate possiblity of tweaking the VM translator to produce valid x86 assembly code.
-  Can leverage other intermediate language representations? Or other compilers?
-* After completing everything, write a big blog summarising very concisely how
-  to build a computer and programming language + compiler from first principles.
-
-# How it works
-
-A recount of how I implemented the compiler (part I)
-
-The major components are:
-* `JackCompiler`
-  The entry point of the compiler. It's responsible for handling command-line
-  arguments and kicking off the compilation process starting from lexical
-  analysis, building up an abstract syntax tree, then code generation.
-* `CompilationEngine`
-  A [recursive descent parser](https://en.wikipedia.org/wiki/Recursive_descent_parser#:~:text=In%20computer%20science%2C%20a%20recursive, the%20nonterminals%20of%20the%20grammar.)
-  that traverses the token stream produced by `LexicalAnalyser` and applies the
-  rules of Jack grammar to compile language constructs like classes, 
-  subroutines, statements and expressions.
-* `LexicalAnalyser`
-  This module is responsible for traversing the source code input stream and
-  mapping it to a token stream that the CompilationEngine can extract from
-  and process tokens.
-
-Jack is almost an [LL(1)](https://en.wikipedia.org/wiki/LL_grammar) language that's
-designed such that the parser would 'know' what the compilation target for each
-token it encounters is without having to perform a look-ahead on the token
-stream. The only exception to this is in expression parsing.
-
-# Compiler II
-
 ### Scope
 
 Every identifier is implicitly associated with a scope.
@@ -178,14 +79,6 @@ declaration.
   we see a new `var` or local argument, we'd insert it into the subroutine
   table.
 
-# Expressions
-`(x + y) * 2` becomes:
-- push x
-- push y
-- add
-- push 2
-- multiply
-
 Use the algo:
 ```cpp
 void code_write(expression) {
@@ -205,7 +98,6 @@ void code_write(expression) {
     out << "call f n"
   }
 }
-```
 
 # Strings
 Strings are implemented as a class by the OS. The compiler simply maps string

@@ -377,7 +377,6 @@ void AsmMapper::write_return(const std::string& command, const std::string& func
              << "\tM = D\n";
     
     // Restore THAT, THIS, ARG, LCL.
-    // TODO: lots of duplication.
     _asm_out << "// Restoring THAT, THIS, ARG, LCL.\n";
     _asm_out << "\t@R13\n"       // R13 contains the memory address of where the LCL segment is.
              << "\tA = M - 1\n"  // Now M == RAM[frame - 1], so M contains the memory address of the THAT segment.

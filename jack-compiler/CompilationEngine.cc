@@ -141,7 +141,7 @@ void CompilationEngine::compile_subroutine() {
         // All methods must align `this` upfront. This means that the statements
         // in the method body can execute with the assumption that `this` is
         // bound correctly as a precondition.
-        _vm_writer.write_push(VirtualMemorySegment::ARGUMENT, 0);// TODO: duplicated alignment of this
+        _vm_writer.write_push(VirtualMemorySegment::ARGUMENT, 0);
         _vm_writer.write_pop(VirtualMemorySegment::POINTER, 0);
     } else if (subroutine_decl_type == "constructor") {
         // All constructors must allocate the memory for the object and align
@@ -149,9 +149,8 @@ void CompilationEngine::compile_subroutine() {
         // fields in the class-level symbol table.
         int mem_size = _class_symbol_table.var_count(DeclarationType::FIELD);
         _vm_writer.write_push(VirtualMemorySegment::CONSTANT, mem_size);
-        // TODO: it feels weird hard-coding these OS calls.
         _vm_writer.write_call("Memory.alloc", 1);
-        _vm_writer.write_pop(VirtualMemorySegment::POINTER, 0); // TODO: duplicated alignment of this
+        _vm_writer.write_pop(VirtualMemorySegment::POINTER, 0); 
     }
 
     // statement* }
@@ -276,7 +275,7 @@ void CompilationEngine::compile_let() {
         // Put the array item's location into the THAT slot.
         // Note: we expect the index expression's value to be on the top of the
         //       stack.
-        VirtualMemorySegment segment = // TODO: act of pushing to stack is duplicated
+        VirtualMemorySegment segment =
             decl_type_to_segment(symbol_table.declaration_type(identifier));
         int index = symbol_table.segment_index(identifier);
 
@@ -306,7 +305,7 @@ void CompilationEngine::compile_let() {
     //       for the `varName[expression]` case, otherwise it'll be at the top
     //       of the stack.
     if (!array_index_assignment) {
-        VirtualMemorySegment segment = // TODO: act of pushing to stack is duplicated.
+        VirtualMemorySegment segment =
             decl_type_to_segment(symbol_table.declaration_type(identifier));
         int index = symbol_table.segment_index(identifier);
         _vm_writer.write_pop(segment, index);
@@ -648,12 +647,11 @@ void CompilationEngine::compile_term(int nest_level) {
             else if (peeked_token == "[") {
                 try_compile_subscript();
                 
-                // TODO: this might be duplicated in compile_let.
                 // Put the array item's location into the THAT slot, then 
                 // look up its contents to then push onto the stack.
                 // Note: we expect the index expression's value to be on the top of the
                 //       stack.
-                SymbolTable& symbol_table = get_symbol_table_containing(curr_token); // TODO: act of pushing is duplicated
+                SymbolTable& symbol_table = get_symbol_table_containing(curr_token); 
                 VirtualMemorySegment segment =
                     decl_type_to_segment(symbol_table.declaration_type(curr_token));
                 int index = symbol_table.segment_index(curr_token);
@@ -664,7 +662,7 @@ void CompilationEngine::compile_term(int nest_level) {
                 _vm_writer.write_pop(VirtualMemorySegment::POINTER, 1);
                 _vm_writer.write_push(VirtualMemorySegment::THAT, 0);
             } else {
-                SymbolTable& symbol_table = get_symbol_table_containing(curr_token); // TODO: the act of pushing a variable onto the stack is duplicated quite a lot.
+                SymbolTable& symbol_table = get_symbol_table_containing(curr_token); 
                 VirtualMemorySegment segment = decl_type_to_segment(symbol_table.declaration_type(curr_token));
                 int index = symbol_table.segment_index(curr_token);
                 _vm_writer.write_push(segment, index);
@@ -732,7 +730,7 @@ void CompilationEngine::compile_subroutine_invocation(
             const std::string& obj = first_token;
             SymbolTable& symbol_table = get_symbol_table_containing(obj);
             const std::string& class_name = symbol_table.data_type(obj);
-            VirtualMemorySegment segment = decl_type_to_segment(symbol_table.declaration_type(obj)); // TODO: duplicated push
+            VirtualMemorySegment segment = decl_type_to_segment(symbol_table.declaration_type(obj)); 
             int index = symbol_table.segment_index(obj);
             _vm_writer.write_push(segment, index);
             int num_args = compile_expression_list();
@@ -828,7 +826,7 @@ std::string CompilationEngine::expect_token(const std::string& token, const std:
 
 // A valid data type is either a built-in type or an identifier (it's not the
 // responsibility of this function to determine whether it actually references
-// a valid class (TODO: yet?)).
+// a valid class.
 std::string CompilationEngine::expect_data_type(const std::string& err_message) {
     _lexical_analyser->try_advance();
     std::string token = _lexical_analyser->get_token();

@@ -1,6 +1,0 @@
-class Main {
-    method void main() {
-        do Output.printString("Hello world");
-        return;
-    }
-}
